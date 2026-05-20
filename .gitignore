@@ -1,0 +1,25 @@
+# Package manager directories
+node_modules/
+dist/
+.npm
+.tmp/
+
+# Python environment directories
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Databases and configurations
+.env
+*.db
+app.db
+test.db
+
+# OS files
+.DS_Store
+
+# Temporary / diagnostic files
+Full_Codebase.md
+merged_coach.txt

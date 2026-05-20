@@ -1,0 +1,172 @@
+import { create } from 'zustand';
+import type { CoachMessageProps } from '../components/Coach/CoachMessageBubble';
+
+interface CoachStore {
+  messages: CoachMessageProps[];
+  conversations: any[];
+  conversationId: string | null;
+  isTyping: boolean;
+  timeoutError: boolean;
+  initError: boolean;
+  
+  setMessages: (messages: CoachMessageProps[]) => void;
+  setConversations: (conversations: any[]) => void;
+  setConversationId: (id: string | null) => void;
+  setIsTyping: (isTyping: boolean) => void;
+  setTimeoutError: (error: boolean) => void;
+
+  initConversation: () => Promise<void>;
+  fetchConversations: () => Promise<void>;
+  createNewConversation: () => Promise<void>;
+  switchConversation: (id: string) => Promise<void>;
+  fetchMessages: (cId: string) => Promise<void>;
+  sendMessage: (text: string) => Promise<void>;
+}
+
+export const useCoachStore = create<CoachStore>((set, get) => ({
+  messages: [],
+  conversations: [],
+  conversationId: null,
+  isTyping: false,
+  timeoutError: false,
+  initError: false,
+
+  setMessages: (messages) => set({ messages }),
+  setConversations: (conversations) => set({ conversations }),
+  setConversationId: (id) => set({ conversationId: id }),
+  setIsTyping: (isTyping) => set({ isTyping }),
+  setTimeoutError: (error) => set({ timeoutError: error }),
+
+  fetchConversations: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/coach/conversations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ conversations: data });
+      }
+    } catch (e) {
+      console.error("Failed to fetch conversations", e);
+    }
+  },
+
+  createNewConversation: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/coach/conversations', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set((state) => ({ conversations: [data, ...state.conversations] }));
+        get().switchConversation(data.id);
+      }
+    } catch (e) {
+      console.error("Failed to create conversation", e);
+    }
+  },
+
+  switchConversation: async (id: string) => {
+    set({ conversationId: id, messages: [] });
+    await get().fetchMessages(id);
+  },
+
+  initConversation: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const res = await fetch('/coach/conversations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ conversations: data, initError: false });
+        if (data && data.length > 0) {
+          const cId = data[0].id;
+          set({ conversationId: cId });
+          await get().fetchMessages(cId);
+        }
+      } else {
+        set({ initError: true });
+      }
+    } catch (e) {
+      console.error("Failed to init convo", e);
+      set({ initError: true });
+    }
+  },
+
+  fetchMessages: async (cId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/coach/messages?conversation_id=${cId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: CoachMessageProps[] = data.items.map((m: any) => ({
+          id: m.id,
+          sender: m.sender,
+          content: m.content,
+          timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        })).reverse();
+        set({ messages: mapped });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  sendMessage: async (text: string) => {
+    const { conversationId, messages } = get();
+    if (!text.trim() || !conversationId) return;
+
+    const optimisticId = Date.now().toString();
+    const newUserMsg: CoachMessageProps = { 
+      id: optimisticId, 
+      sender: 'student', 
+      content: text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    set({ 
+      messages: [...messages, newUserMsg],
+      isTyping: true,
+      timeoutError: false
+    });
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/coach/message', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          content: text, 
+          conversation_id: conversationId,
+          message_type: 'reply'
+        })
+      });
+      
+      if (!response.ok) throw new Error('API Error');
+      const data = await response.json();
+      
+      set((state) => ({
+        messages: [...state.messages, {
+          id: data.id,
+          sender: 'coach',
+          content: data.content,
+          timestamp: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }],
+        isTyping: false
+      }));
+    } catch(err) {
+       console.error(err);
+       set({ timeoutError: true, isTyping: false });
+    }
+  }
+}));
