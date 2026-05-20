@@ -1,0 +1,28 @@
+[build]
+  command = "cd frontend && npm run build"
+  publish = "frontend/dist"
+
+[functions]
+  directory = "netlify/functions"
+
+# Route API endpoints directly to our Python serverless function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/coach/*"
+  to = "/.netlify/functions/api/coach/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/.netlify/functions/api/admin/:splat"
+  status = 200
+
+# React Router single-page navigation fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
