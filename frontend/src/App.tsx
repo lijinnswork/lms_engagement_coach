@@ -14,6 +14,7 @@ import { FloatingCoachBot } from './components/FloatingCoachBot';
 import { NotificationToast } from './components/Notifications/NotificationToast';
 
 import { ProtectedAdminRoute } from './components/Admin/ProtectedAdminRoute';
+import { ProtectedRoute, PublicRoute } from './components/Common/ProtectedRoute';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { UserManagement } from './pages/admin/UserManagement';
@@ -84,16 +85,52 @@ function App() {
           </Route>
 
           {/* Student Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/login" element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
+          <Route path="/signup" element={
+            <PublicRoute>
+              <Signup />
+            </PublicRoute>
+          } />
+          <Route path="/onboarding" element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          } />
 
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/coach" element={<CoachChat />} />
-          <Route path="/course/:course_id" element={<CourseDetail />} />
-          <Route path="/reminders" element={<Reminders />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/" element={<Home />} />
+          <Route path="/goals" element={
+            <ProtectedRoute>
+              <Goals />
+            </ProtectedRoute>
+          } />
+          <Route path="/coach" element={
+            <ProtectedRoute>
+              <CoachChat />
+            </ProtectedRoute>
+          } />
+          <Route path="/course/:course_id" element={
+            <ProtectedRoute>
+              <CourseDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/reminders" element={
+            <ProtectedRoute>
+              <Reminders />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          } />
         </Routes>
         <FloatingCoachBot />
       </div>

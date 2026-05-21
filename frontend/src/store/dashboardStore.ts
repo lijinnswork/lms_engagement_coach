@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { mockGoals } from '../data/mockDashboard'
+import { fetchWithAuth } from '../stores/authStore'
+
 
 interface DashboardStore {
   // Coach card
@@ -54,7 +56,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       
       // Fire API call if it's a real backend goal
       if (goalToUpdate.status !== undefined) {
-        fetch(`/api/goals/${id}`, {
+        fetchWithAuth(`/api/goals/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus })
@@ -84,14 +86,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
       summary: "Connect to the API to see your engagement data."
     };
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        set({ engagementMetrics: fallbackMetrics });
-        return;
-      }
-      const res = await fetch('/api/dashboard/engagement', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetchWithAuth('/api/dashboard/engagement');
       if (res.ok) {
         const data = await res.json();
         set({ engagementMetrics: data });

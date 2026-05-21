@@ -55,3 +55,22 @@ export const useAuthStore = create<AuthState>((set) => {
     },
   };
 });
+
+export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  const token = localStorage.getItem('token');
+  const headers = {
+    ...options.headers,
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    // Clear credentials on 401 Unauthorized (expired or invalid token)
+    useAuthStore.getState().logout();
+    window.location.href = '/login';
+  }
+
+  return response;
+};
+

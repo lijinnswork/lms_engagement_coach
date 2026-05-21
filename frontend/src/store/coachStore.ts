@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import type { CoachMessageProps } from '../components/Coach/CoachMessageBubble';
+import { fetchWithAuth } from '../stores/authStore';
+
 
 interface CoachStore {
   messages: CoachMessageProps[];
@@ -39,10 +41,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   fetchConversations: async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/coach/conversations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetchWithAuth('/coach/conversations');
       if (res.ok) {
         const data = await res.json();
         set({ conversations: data });
@@ -54,10 +53,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   createNewConversation: async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/coach/conversations', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetchWithAuth('/coach/conversations', {
+        method: 'POST'
       });
       if (res.ok) {
         const data = await res.json();
@@ -78,9 +75,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-      const res = await fetch('/coach/conversations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetchWithAuth('/coach/conversations');
       if (res.ok) {
         const data = await res.json();
         set({ conversations: data, initError: false });
@@ -100,10 +95,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   fetchMessages: async (cId: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/coach/messages?conversation_id=${cId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetchWithAuth(`/coach/messages?conversation_id=${cId}`);
       if (res.ok) {
         const data = await res.json();
         const mapped: CoachMessageProps[] = data.items.map((m: any) => ({
@@ -138,12 +130,10 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     });
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/coach/message', {
+      const response = await fetchWithAuth('/coach/message', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
           content: text, 

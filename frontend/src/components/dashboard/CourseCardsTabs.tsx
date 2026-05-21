@@ -1,28 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { mockCourses } from '../../data/mockDashboard';
+import { fetchWithAuth } from '../../stores/authStore';
+
+const COLORS = [
+  '#7B9EA8', // Sage Blue
+  '#E8A87C', // Warm Peach
+  '#B4C7B8', // Soft Mint
+  '#D4C5B9', // Soft Sand
+  '#9B8EC4', // Muted Lavender
+  '#E6B89C', // Light Terracotta
+  '#82B5A5', // Seafoam
+  '#C4A882', // Warm Tan
+];
 
 export const CourseCardsTabs = () => {
   const [activeTab, setActiveTab] = useState<'in_progress' | 'completed'>('in_progress');
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Hardcoding a completed course since mockCourses only has in progress
-  const completedCourses = [
-    {
-      id: 'completed-101',
-      name: 'Introduction to AI',
-      modulesComplete: 10,
-      modulesTotal: 10,
-      progress: 100,
-      color: '#B4C7B8',
-      iconType: 'check',
-      completed_at: 'Completed on Apr 10'
-    }
-  ];
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const res = await fetchWithAuth('/api/courses');
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map((d: any, idx: number) => {
+            const progressObj = typeof d.progress === 'object' && d.progress !== null ? d.progress : {};
+            const progressPercent = progressObj.progress_percent ?? d.progress_percent ?? 0;
+            const completedItems = progressObj.completed_items ?? d.items_completed ?? 0;
+            const totalItems = progressObj.total_items ?? d.total_items ?? 10;
+            const lastActivity = progressObj.last_activity_at ?? d.last_activity_time ?? null;
+            const name = d.course_name || d.name || 'Untitled Course';
 
-  const inProgressCourses = mockCourses;
+            return {
+              id: d.course_id || d.id,
+              name: name,
+              modulesComplete: completedItems,
+              modulesTotal: totalItems,
+              progress: progressPercent,
+              color: COLORS[idx % COLORS.length],
+              iconType: idx % 3 === 0 ? 'code' : idx % 3 === 1 ? 'grid' : 'monitor',
+              completed_at: lastActivity ? `Completed on ${new Date(lastActivity).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}` : 'Completed'
+            };
+          });
+          setCourses(mapped);
+        }
+      } catch (e) {
+        console.error('Error fetching courses in Tabs:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCourses();
+  }, []);
+
+  const completedCourses = courses.filter(c => c.progress === 100);
+  const inProgressCourses = courses.filter(c => c.progress < 100);
 
   const renderCard = (course: any, isCompleted: boolean) => (
     <div 
@@ -40,7 +76,7 @@ export const CourseCardsTabs = () => {
         className="w-10 h-10 rounded-full flex items-center justify-center mb-4 text-white"
         style={{ backgroundColor: course.color }}
       >
-        <span className="text-[18px] font-bold">{course.name.charAt(0)}</span>
+        <span className="text-[18px] font-bold">{(course.name || '').charAt(0)}</span>
       </div>
       
       <h3 className="text-[16px] font-bold text-text-primary dark:text-text-darkPri mb-1 line-clamp-2 min-h-[48px]">
@@ -67,6 +103,12 @@ export const CourseCardsTabs = () => {
       </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="w-full h-[180px] bg-bg-secondary dark:bg-bg-darkCard animate-pulse rounded-2xl" />
+    );
+  }
 
   return (
     <div className="w-full">
@@ -118,3 +160,4 @@ export const CourseCardsTabs = () => {
     </div>
   );
 };
+

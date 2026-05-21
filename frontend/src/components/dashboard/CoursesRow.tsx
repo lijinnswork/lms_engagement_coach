@@ -1,14 +1,80 @@
-import { mockCourses } from '../../data/mockDashboard';
+import { useEffect, useState } from 'react';
 import { CourseCard } from './CourseCard';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { fetchWithAuth } from '../../stores/authStore';
+
+const COLORS = [
+  '#7B9EA8', // Sage Blue
+  '#E8A87C', // Warm Peach
+  '#B4C7B8', // Soft Mint
+  '#D4C5B9', // Soft Sand
+  '#9B8EC4', // Muted Lavender
+  '#E6B89C', // Light Terracotta
+  '#82B5A5', // Seafoam
+  '#C4A882', // Warm Tan
+];
 
 export const CoursesRow = () => {
   const breakpoint = useBreakpoint();
-  
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const res = await fetchWithAuth('/api/courses');
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map((d: any, idx: number) => {
+            const progressObj = typeof d.progress === 'object' && d.progress !== null ? d.progress : {};
+            const progressPercent = progressObj.progress_percent ?? d.progress_percent ?? 0;
+            const completedItems = progressObj.completed_items ?? d.items_completed ?? 0;
+            const totalItems = progressObj.total_items ?? d.total_items ?? 10;
+            const name = d.course_name || d.name || 'Untitled Course';
+
+            return {
+              id: d.course_id || d.id,
+              name: name,
+              modulesComplete: completedItems,
+              modulesTotal: totalItems,
+              progress: progressPercent,
+              color: COLORS[idx % COLORS.length],
+              iconType: idx % 3 === 0 ? 'code' : idx % 3 === 1 ? 'grid' : 'monitor'
+            };
+          });
+          setCourses(mapped);
+        }
+      } catch (e) {
+        console.error('Error fetching courses in Row:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCourses();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex gap-4 mt-2 overflow-x-auto pb-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="w-[140px] h-[130px] rounded-xl bg-bg-secondary dark:bg-bg-darkCard animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (courses.length === 0) {
+    return (
+      <div className="text-sm text-text-secondary dark:text-text-darkSec py-4">
+        No courses connected. Please link your Open edX account in Settings.
+      </div>
+    );
+  }
+
   if (breakpoint === 'desktop') {
     return (
       <div className="flex flex-wrap gap-4 mt-2">
-        {mockCourses.map((course) => (
+        {courses.map((course) => (
           <CourseCard key={course.id} course={course} />
         ))}
       </div>
@@ -18,9 +84,10 @@ export const CoursesRow = () => {
   // Mobile and Tablet - Horizontal scroll, hide scrollbar via CSS class
   return (
     <div className="flex overflow-x-auto gap-4 mt-2 pb-4 -mx-6 px-6 no-scrollbar">
-      {mockCourses.map((course) => (
+      {courses.map((course) => (
         <CourseCard key={course.id} course={course} />
       ))}
     </div>
   );
 };
+
