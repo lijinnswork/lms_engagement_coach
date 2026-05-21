@@ -1,4 +1,8 @@
-/api/*     https://lms-backend-api-8njf.onrender.com/:splat    200
+/api/courses/*        https://lms-backend-api-8njf.onrender.com/api/courses/:splat        200
+/api/dashboard/*      https://lms-backend-api-8njf.onrender.com/api/dashboard/:splat      200
+/api/reminders/*      https://lms-backend-api-8njf.onrender.com/api/reminders/:splat      200
+/api/notifications/*  https://lms-backend-api-8njf.onrender.com/api/notifications/:splat  200
+/api/*                https://lms-backend-api-8njf.onrender.com/:splat                    200
 /coach/*   https://lms-backend-api-8njf.onrender.com/coach/:splat  200
 /admin/*   https://lms-backend-api-8njf.onrender.com/admin/:splat  200
 /*         /index.html                                       200
