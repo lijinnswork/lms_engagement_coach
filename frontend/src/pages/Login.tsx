@@ -34,8 +34,14 @@ export const Login: React.FC = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
+        let errMsg = 'Login failed';
+        try {
+          const errorData = await response.json();
+          errMsg = errorData.detail || errMsg;
+        } catch (e) {
+          errMsg = `Backend error (status: ${response.status}). The database or server might be initializing. Please wait a moment and try again.`;
+        }
+        throw new Error(errMsg);
       }
 
       const { access_token } = await response.json();

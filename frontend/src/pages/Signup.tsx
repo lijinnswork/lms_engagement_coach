@@ -34,8 +34,14 @@ export const Signup: React.FC = () => {
       });
 
       if (!signupRes.ok) {
-        const errorData = await signupRes.json();
-        throw new Error(errorData.detail || 'Signup failed');
+        let errMsg = 'Signup failed';
+        try {
+          const errorData = await signupRes.json();
+          errMsg = errorData.detail || errMsg;
+        } catch (e) {
+          errMsg = `Backend error (status: ${signupRes.status}). The database or server might be initializing. Please wait a moment and try again.`;
+        }
+        throw new Error(errMsg);
       }
 
       // 2. Automatically log in to get access token
