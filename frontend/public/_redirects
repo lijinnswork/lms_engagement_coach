@@ -1,1 +1,4 @@
-/*    /index.html   200
+/api/*     https://lms-backend-api-8njf.onrender.com/api/:splat    200
+/coach/*   https://lms-backend-api-8njf.onrender.com/coach/:splat  200
+/admin/*   https://lms-backend-api-8njf.onrender.com/admin/:splat  200
+/*         /index.html                                       200
