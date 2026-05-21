@@ -1,27 +1,26 @@
 [build]
-  command = "cd frontend && npm run build"
-  publish = "frontend/dist"
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
 
-[functions]
-  directory = "netlify/functions"
-
-# Route API endpoints directly to our Python serverless function
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "https://lms-backend-api-8njf.onrender.com/api/:splat"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/coach/*"
-  to = "/.netlify/functions/api/coach/:splat"
+  to = "https://lms-backend-api-8njf.onrender.com/coach/:splat"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/admin/*"
-  to = "/.netlify/functions/api/admin/:splat"
+  to = "https://lms-backend-api-8njf.onrender.com/admin/:splat"
   status = 200
+  force = true
 
-# React Router single-page navigation fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
