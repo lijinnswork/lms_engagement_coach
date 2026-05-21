@@ -13,6 +13,23 @@ app = FastAPI(title=settings.PROJECT_NAME)
 @app.on_event("startup")
 def startup_event():
     setup_scheduler()
+    
+    # Auto-promote administrators on database startup
+    try:
+        from app.database import SessionLocal
+        from app.db.models.user import User
+        db = SessionLocal()
+        emails_to_promote = ["lijin@gmail.com", "lijin.ns@iimbx.iimb.ac.in", "vishal.reddy@iimbx.iimb.ac.in"]
+        for email in emails_to_promote:
+            user = db.query(User).filter(User.email == email.strip().lower()).first()
+            if user and user.role != "super_admin":
+                user.role = "super_admin"
+                db.commit()
+                print(f"Auto-promoted {email} to super_admin on startup.")
+        db.close()
+    except Exception as e:
+        print("Error promoting admins on startup:", e)
+
 
 app.add_middleware(
     CORSMiddleware,
