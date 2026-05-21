@@ -104,7 +104,7 @@ export const Login: React.FC = () => {
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
+                className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
                 required
               />
             </div>
@@ -115,7 +115,7 @@ export const Login: React.FC = () => {
                   type={showPassword ? "text" : "password"} 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl pl-4 pr-11 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
+                  className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl pl-4 pr-11 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
                   required
                 />
                 <button

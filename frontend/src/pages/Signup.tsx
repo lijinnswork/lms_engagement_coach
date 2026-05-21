@@ -115,7 +115,7 @@ export const Signup: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="First name is fine"
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
+                className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
                 required
               />
             </div>
@@ -125,7 +125,7 @@ export const Signup: React.FC = () => {
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
+                className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
                 required
               />
             </div>
@@ -135,7 +135,7 @@ export const Signup: React.FC = () => {
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
+                className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
                 required
               />
             </div>
