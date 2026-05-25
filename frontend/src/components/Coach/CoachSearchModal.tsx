@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search } from 'lucide-react';
 import type { CoachMessageProps } from './CoachMessageBubble';
+import { fetchWithAuth } from '../../stores/authStore';
 
 interface CoachSearchModalProps {
   isOpen: boolean;
@@ -24,7 +25,7 @@ export const CoachSearchModal: React.FC<CoachSearchModalProps> = ({ isOpen, onCl
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await fetch(`/coach/messages/search?q=${encodeURIComponent(query)}&conversation_id=${conversationId}`);
+        const res = await fetchWithAuth(`/coach/messages/search?q=${encodeURIComponent(query)}&conversation_id=${conversationId}`);
         if (res.ok) {
           const data = await res.json();
           const mapped = data.map((m: any) => ({

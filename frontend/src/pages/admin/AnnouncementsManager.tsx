@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit, X } from 'lucide-react';
 import type { Announcement } from '../../components/dashboard/AnnouncementBanner';
+import { fetchWithAuth } from '../../stores/authStore';
 
 export const AnnouncementsManager = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -20,7 +21,7 @@ export const AnnouncementsManager = () => {
 
   const fetchAnnouncements = async () => {
     try {
-      const res = await fetch('/api/announcements/admin');
+      const res = await fetchWithAuth('/api/announcements/admin');
       if (res.ok) {
         const data = await res.json();
         setAnnouncements(data);
@@ -71,7 +72,7 @@ export const AnnouncementsManager = () => {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this announcement?")) return;
     try {
-      const res = await fetch(`/api/announcements/admin/${id}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`/api/announcements/admin/${id}`, { method: 'DELETE' });
       if (res.ok) fetchAnnouncements();
     } catch (e) {
       console.error(e);
@@ -90,7 +91,7 @@ export const AnnouncementsManager = () => {
         end_date: new Date(formData.end_date).toISOString()
       };
 
-      const res = await fetch(url, {
+      const res = await fetchWithAuth(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

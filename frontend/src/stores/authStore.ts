@@ -58,6 +58,14 @@ export const useAuthStore = create<AuthState>((set) => {
 
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('token');
+  
+  // Distinguish if we attempted to authenticate
+  const hasAuthHeader = !!token || 
+    (options.headers && (
+      (options.headers as Record<string, string>)['Authorization'] || 
+      (options.headers as Record<string, string>)['authorization']
+    ));
+
   const headers = {
     ...options.headers,
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -66,9 +74,12 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401) {
-    // Clear credentials on 401 Unauthorized (expired or invalid token)
-    useAuthStore.getState().logout();
-    window.location.href = '/login';
+    // Only clear credentials and logout if we actually sent a token that was rejected.
+    // This prevents premature logout loops due to missing headers on non-essential fetches.
+    if (hasAuthHeader) {
+      useAuthStore.getState().logout();
+      window.location.href = '/login';
+    }
   }
 
   return response;

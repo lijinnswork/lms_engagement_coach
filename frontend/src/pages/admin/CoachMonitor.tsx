@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertTriangle
 } from 'lucide-react';
+import { fetchWithAuth } from '../../stores/authStore';
 
 interface SampleMessage {
   id: string;
@@ -66,11 +67,11 @@ export const CoachMonitor: React.FC = () => {
   const [samples, setSamples] = useState<SampleMessage[]>(MOCK_MESSAGES);
 
   React.useEffect(() => {
-    fetch('/api/admin/coach/stats').then(r => r.json()).then(data => {
+    fetchWithAuth('/api/admin/coach/stats').then(r => r.json()).then(data => {
       if (data.messages_sent !== undefined) setStats(data);
     }).catch(console.error);
 
-    fetch('/api/admin/coach/charts').then(r => r.json()).then(data => {
+    fetchWithAuth('/api/admin/coach/charts').then(r => r.json()).then(data => {
       if (data.trigger_distribution && data.trigger_distribution.length > 0) {
         // Map colors to agents
         const colors: Record<string, string> = {
@@ -85,11 +86,11 @@ export const CoachMonitor: React.FC = () => {
       }
     }).catch(console.error);
 
-    fetch('/api/admin/coach/safety-report').then(r => r.json()).then(data => {
+    fetchWithAuth('/api/admin/coach/safety-report').then(r => r.json()).then(data => {
       if (data.total_passed !== undefined) setSafety(data);
     }).catch(console.error);
 
-    fetch('/api/admin/coach/samples').then(r => r.json()).then(data => {
+    fetchWithAuth('/api/admin/coach/samples').then(r => r.json()).then(data => {
       if (Array.isArray(data) && data.length > 0) setSamples(data);
     }).catch(console.error);
   }, []);

@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithAuth } from '../../../stores/authStore';
 
 export const BasePromptPanel: React.FC = () => {
   const [draftPrompt, setDraftPrompt] = useState('');
   const [versions, setVersions] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/admin/coach-studio/prompt')
+    fetchWithAuth('/admin/coach-studio/prompt')
       .then(res => res.json())
       .then(d => {
         setDraftPrompt(d.draft_prompt || '');
       });
       
-    fetch('/admin/coach-studio/prompt/versions')
+    fetchWithAuth('/admin/coach-studio/prompt/versions')
       .then(res => res.json())
       .then(d => setVersions(d));
   }, []);
 
   const saveDraft = () => {
-    fetch('/admin/coach-studio/prompt', {
+    fetchWithAuth('/admin/coach-studio/prompt', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt_text: draftPrompt })
@@ -26,7 +27,7 @@ export const BasePromptPanel: React.FC = () => {
 
   const publishToLive = () => {
     if(window.confirm('This will change how the coach speaks to all students. Have you tested this in the preview panel?')) {
-      fetch('/admin/coach-studio/prompt/publish', {
+      fetchWithAuth('/admin/coach-studio/prompt/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt_text: draftPrompt })

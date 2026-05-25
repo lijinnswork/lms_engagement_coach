@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { fetchWithAuth } from '../../../stores/authStore';
 
 export const PredefinedResponsesPanel: React.FC = () => {
   const [responses, setResponses] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/admin/coach-studio/responses')
+    fetchWithAuth('/admin/coach-studio/responses')
       .then(res => res.json())
       .then(d => setResponses(d));
   }, []);
@@ -19,7 +20,7 @@ export const PredefinedResponsesPanel: React.FC = () => {
     const url = row.id ? `/admin/coach-studio/responses/${row.id}` : '/admin/coach-studio/responses';
     const method = row.id ? 'PATCH' : 'POST';
     
-    fetch(url, {
+    fetchWithAuth(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(row)
@@ -31,7 +32,7 @@ export const PredefinedResponsesPanel: React.FC = () => {
       setResponses(responses.filter((_, i) => i !== index));
       return;
     }
-    fetch(`/admin/coach-studio/responses/${id}`, { method: 'DELETE' })
+    fetchWithAuth(`/admin/coach-studio/responses/${id}`, { method: 'DELETE' })
       .then(() => window.location.reload());
   };
 

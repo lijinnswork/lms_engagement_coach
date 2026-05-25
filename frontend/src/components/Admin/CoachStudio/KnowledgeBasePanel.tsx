@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Save, Check, UploadCloud, FileText } from 'lucide-react';
+import { fetchWithAuth } from '../../../stores/authStore';
 
 export const KnowledgeBasePanel: React.FC = () => {
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -10,7 +11,7 @@ export const KnowledgeBasePanel: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch('/admin/coach-studio/knowledge')
+    fetchWithAuth('/admin/coach-studio/knowledge')
       .then(res => res.json())
       .then(d => {
         if (Array.isArray(d)) setFaqs(d);
@@ -21,7 +22,7 @@ export const KnowledgeBasePanel: React.FC = () => {
   }, []);
 
   const fetchDocuments = () => {
-    fetch('/admin/coach-studio/knowledge/documents')
+    fetchWithAuth('/admin/coach-studio/knowledge/documents')
       .then(res => res.json())
       .then(d => {
         if (Array.isArray(d)) setDocuments(d);
@@ -40,7 +41,7 @@ export const KnowledgeBasePanel: React.FC = () => {
 
   const saveAll = () => {
     setIsSaving(true);
-    fetch('/admin/coach-studio/knowledge', {
+    fetchWithAuth('/admin/coach-studio/knowledge', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: faqs })
@@ -66,7 +67,7 @@ export const KnowledgeBasePanel: React.FC = () => {
     const formData = new FormData();
     formData.append('file', file);
 
-    fetch('/admin/coach-studio/knowledge/upload', {
+    fetchWithAuth('/admin/coach-studio/knowledge/upload', {
       method: 'POST',
       body: formData
     })
@@ -80,7 +81,7 @@ export const KnowledgeBasePanel: React.FC = () => {
   };
 
   const deleteDocument = (id: string) => {
-    fetch(`/admin/coach-studio/knowledge/documents/${id}`, {
+    fetchWithAuth(`/admin/coach-studio/knowledge/documents/${id}`, {
       method: 'DELETE'
     })
     .then(() => fetchDocuments());

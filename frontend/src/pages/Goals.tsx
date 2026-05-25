@@ -12,6 +12,7 @@ import { DesktopLayout } from '../layouts/DesktopLayout';
 import { TabletLayout } from '../layouts/TabletLayout';
 import { MobileLayout } from '../layouts/MobileLayout';
 import { useDashboardStore } from '../store/dashboardStore';
+import { fetchWithAuth } from '../stores/authStore';
 
 interface Goal {
   id: string;
@@ -46,7 +47,7 @@ export const Goals: React.FC = () => {
   
   const fetchGoals = useCallback(async () => {
     try {
-      await fetch('/api/goals/')
+      await fetchWithAuth('/api/goals/')
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch goals');
           return res.json();
@@ -59,7 +60,7 @@ export const Goals: React.FC = () => {
         })
         .catch(e => console.error(e));
         
-      await fetch('/api/goals/stats')
+      await fetchWithAuth('/api/goals/stats')
         .then(res => res.json())
         .then(data => setStats(data))
         .catch(e => console.error(e));
@@ -70,7 +71,7 @@ export const Goals: React.FC = () => {
 
   useEffect(() => {
     fetchGoals();
-    fetch('/api/courses')
+    fetchWithAuth('/api/courses')
       .then(res => {
         if (res.ok) return res.json();
         throw new Error();
@@ -85,7 +86,7 @@ export const Goals: React.FC = () => {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const res = await fetch(`/api/goals/${id}`, {
+      const res = await fetchWithAuth(`/api/goals/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -103,7 +104,7 @@ export const Goals: React.FC = () => {
 
   const handleDeleteGoal = async (id: string) => {
     try {
-      const res = await fetch(`/api/goals/${id}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`/api/goals/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setToastMsg("Goal deleted");
         fetchGoals();
@@ -121,7 +122,7 @@ export const Goals: React.FC = () => {
     try {
       let res;
       if (editingGoal) {
-        res = await fetch(`/api/goals/${editingGoal.id}`, {
+        res = await fetchWithAuth(`/api/goals/${editingGoal.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -133,7 +134,7 @@ export const Goals: React.FC = () => {
           })
         });
       } else {
-        res = await fetch('/api/goals', {
+        res = await fetchWithAuth('/api/goals', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

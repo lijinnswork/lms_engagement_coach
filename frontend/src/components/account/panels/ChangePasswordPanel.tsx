@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuthStore } from '../../../stores/authStore';
+import { useAuthStore, fetchWithAuth } from '../../../stores/authStore';
 import { ArrowLeft, Key } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -16,12 +16,10 @@ export const ChangePasswordPanel = ({ onClose }: { onClose: () => void }) => {
     }
     
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/account/password', {
+      const res = await fetchWithAuth('/api/account/password', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
       });

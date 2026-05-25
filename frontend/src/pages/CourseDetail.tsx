@@ -4,6 +4,7 @@ import { DesktopLayout } from '../layouts/DesktopLayout';
 import { TabletLayout } from '../layouts/TabletLayout';
 import { MobileLayout } from '../layouts/MobileLayout';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import { fetchWithAuth } from '../stores/authStore';
 import { CourseHeader } from '../components/CourseDetail/CourseHeader';
 import { ProgressHero } from '../components/CourseDetail/ProgressHero';
 import { ContinueAction } from '../components/CourseDetail/ContinueAction';
@@ -24,10 +25,7 @@ export const CourseDetail = () => {
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/courses/${course_id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetchWithAuth(`/api/courses/${course_id}`);
         if (res.ok) {
           const data = await res.json();
           setCourseData(data);

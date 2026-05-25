@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Info, BookOpen, Clock, Award, RefreshCw, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchWithAuth } from '../../stores/authStore';
 
 export interface Announcement {
   id: string;
@@ -19,7 +20,7 @@ export const AnnouncementBanner = () => {
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
-        const res = await fetch('/api/announcements/');
+        const res = await fetchWithAuth('/api/announcements/');
         if (!res.ok) throw new Error('Failed to fetch announcements');
         const data: Announcement[] = await res.json();
         

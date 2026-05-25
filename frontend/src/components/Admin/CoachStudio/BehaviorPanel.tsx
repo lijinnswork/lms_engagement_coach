@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithAuth } from '../../../stores/authStore';
 
 export const BehaviorPanel: React.FC = () => {
   const [data, setData] = useState({
@@ -12,13 +13,13 @@ export const BehaviorPanel: React.FC = () => {
   });
 
   useEffect(() => {
-    fetch('/admin/coach-studio/behavior')
+    fetchWithAuth('/admin/coach-studio/behavior')
       .then(res => res.json())
       .then(d => setData(d));
   }, []);
 
   const handleSave = () => {
-    fetch('/admin/coach-studio/behavior', {
+    fetchWithAuth('/admin/coach-studio/behavior', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, Target, Settings, Bell, Shield } from 'lucide-react';
-import { useAuthStore } from '../stores/authStore';
+import { useAuthStore, fetchWithAuth } from '../stores/authStore';
 
 import { CoachCard } from '../components/dashboard/CoachCard';
 import { NextActionCard } from '../components/dashboard/NextActionCard';
@@ -40,7 +40,7 @@ export const TabletLayout = ({ children }: TabletLayoutProps) => {
   const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
 
   React.useEffect(() => {
-    fetch('/api/courses')
+    fetchWithAuth('/api/courses')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {

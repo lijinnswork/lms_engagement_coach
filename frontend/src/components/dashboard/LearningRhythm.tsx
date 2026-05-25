@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { fetchWithAuth } from '../../stores/authStore';
 
 interface RhythmData {
   weekly_pattern: {
@@ -53,18 +54,7 @@ export const LearningRhythm: React.FC = () => {
       };
 
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setData(fallbackData);
-          setLoading(false);
-          return;
-        }
-        
-        const res = await fetch('/api/dashboard/rhythm', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const res = await fetchWithAuth('/api/dashboard/rhythm');
         if (res.ok) {
           const json = await res.json();
           setData(json);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithAuth } from '../../../stores/authStore';
 
 export const DataSourcesPanel: React.FC = () => {
   const [data, setData] = useState({
@@ -11,13 +12,13 @@ export const DataSourcesPanel: React.FC = () => {
   });
 
   useEffect(() => {
-    fetch('/admin/coach-studio/data-sources')
+    fetchWithAuth('/admin/coach-studio/data-sources')
       .then(res => res.json())
       .then(d => setData(d));
   }, []);
 
   const handleSave = () => {
-    fetch('/admin/coach-studio/data-sources', {
+    fetchWithAuth('/admin/coach-studio/data-sources', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -25,7 +26,7 @@ export const DataSourcesPanel: React.FC = () => {
   };
 
   const handleSync = () => {
-    fetch('/admin/coach-studio/data-sources/sync', { method: 'POST' })
+    fetchWithAuth('/admin/coach-studio/data-sources/sync', { method: 'POST' })
       .then(() => alert('Sync triggered successfully.'));
   };
 

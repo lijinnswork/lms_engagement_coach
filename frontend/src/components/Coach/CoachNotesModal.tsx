@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { fetchWithAuth } from '../../stores/authStore';
 
 interface CoachNotesModalProps {
   isOpen: boolean;
@@ -13,7 +14,7 @@ export const CoachNotesModal: React.FC<CoachNotesModalProps> = ({ isOpen, onClos
 
   useEffect(() => {
     if (isOpen && !notes) {
-      fetch('/coach/notes')
+      fetchWithAuth('/coach/notes')
         .then(res => res.json())
         .then(data => setNotes(data))
         .catch(console.error);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '../../../stores/authStore';
+import { useAuthStore, fetchWithAuth } from '../../../stores/authStore';
 import { ArrowLeft, CheckCircle, RefreshCw, AlertCircle, Unlink } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -18,9 +18,7 @@ export const LmsAccountPanel = ({ onClose }: { onClose: () => void }) => {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch('/api/account/openedx/status', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetchWithAuth('/api/account/openedx/status');
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
@@ -44,11 +42,10 @@ export const LmsAccountPanel = ({ onClose }: { onClose: () => void }) => {
     setSuccess(null);
 
     try {
-      const res = await fetch('/api/account/openedx/connect', {
+      const res = await fetchWithAuth('/api/account/openedx/connect', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ lms_username: lmsUsername.trim() })
       });
@@ -78,11 +75,8 @@ export const LmsAccountPanel = ({ onClose }: { onClose: () => void }) => {
     setSuccess(null);
 
     try {
-      const res = await fetch('/api/account/openedx/sync', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await fetchWithAuth('/api/account/openedx/sync', {
+        method: 'POST'
       });
 
       if (!res.ok) {
@@ -106,11 +100,8 @@ export const LmsAccountPanel = ({ onClose }: { onClose: () => void }) => {
     setSuccess(null);
 
     try {
-      const res = await fetch('/api/account/openedx/disconnect', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await fetchWithAuth('/api/account/openedx/disconnect', {
+        method: 'POST'
       });
 
       if (!res.ok) {

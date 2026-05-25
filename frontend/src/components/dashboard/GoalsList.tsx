@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDashboardStore } from '../../store/dashboardStore';
 import { GoalItem } from './GoalItem';
 import { Link } from 'react-router-dom';
+import { fetchWithAuth } from '../../stores/authStore';
 
 export const GoalsList = () => {
   const goals = useDashboardStore(state => state.goals);
@@ -11,7 +12,7 @@ export const GoalsList = () => {
   
   useEffect(() => {
     setLoading(true);
-    fetch('/api/goals/')
+    fetchWithAuth('/api/goals/')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch goals');
         return res.json();

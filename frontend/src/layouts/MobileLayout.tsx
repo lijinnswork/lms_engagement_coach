@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import React from 'react';
 import { Home, MessageSquare, Target, Settings, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
+import { useAuthStore, fetchWithAuth } from '../stores/authStore';
 
 import { CoachCard } from '../components/dashboard/CoachCard';
 import { NextActionCard } from '../components/dashboard/NextActionCard';
@@ -38,7 +38,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
   const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
 
   React.useEffect(() => {
-    fetch('/api/courses')
+    fetchWithAuth('/api/courses')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {

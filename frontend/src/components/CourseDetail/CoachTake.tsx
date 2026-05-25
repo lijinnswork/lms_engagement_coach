@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchWithAuth } from '../../stores/authStore';
 
 export const CoachTake = ({ courseId, data }: { courseId: string, data: any }) => {
   const [coachText, setCoachText] = useState<string | null>(null);
@@ -9,10 +10,7 @@ export const CoachTake = ({ courseId, data }: { courseId: string, data: any }) =
   useEffect(() => {
     const fetchCoachTake = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/courses/${courseId}/coach-take`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetchWithAuth(`/api/courses/${courseId}/coach-take`);
         if (res.ok) {
           const json = await res.json();
           setCoachText(json.text);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { fetchWithAuth } from '../../stores/authStore';
 
 
 // Ensure the type matches what might come from the API or mock
@@ -43,10 +44,7 @@ export const StackedProgressBar = () => {
     // Attempt to fetch from real API, fallback to mock data
     const fetchCourses = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/courses', {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
+        const res = await fetchWithAuth('/api/courses');
         if (res.ok) {
           const data = await res.json();
           // Map backend data to our interface

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Search, ChevronRight, ChevronDown } from 'lucide-react';
+import { fetchWithAuth } from '../../stores/authStore';
 
 interface AgentLog {
   id: string;
@@ -27,7 +28,7 @@ export const AgentLogs: React.FC = () => {
   const [logs, setLogs] = useState<AgentLog[]>(MOCK_LOGS);
 
   React.useEffect(() => {
-    fetch('/api/admin/logs')
+    fetchWithAuth('/api/admin/logs')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch');
         return res.json();

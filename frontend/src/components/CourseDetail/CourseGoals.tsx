@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Target, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { fetchWithAuth } from '../../stores/authStore';
 
 export const CourseGoals = ({ courseId, data }: { courseId: string, data: any }) => {
   const [goals, setGoals] = useState<any[]>([]);
@@ -10,10 +11,7 @@ export const CourseGoals = ({ courseId, data }: { courseId: string, data: any })
   useEffect(() => {
     const fetchGoals = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/goals`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetchWithAuth(`/api/goals`);
         if (res.ok) {
           const allGoals = await res.json();
           const courseGoals = allGoals.filter((g: any) => g.course_id === courseId);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Send, Loader2 } from 'lucide-react';
+import { fetchWithAuth } from '../../../stores/authStore';
 
 export const LiveTestChat: React.FC = () => {
   const [messages, setMessages] = useState<{sender: string, text: string}[]>([{sender: 'coach', text: 'Hi! Ready to test some prompts?'}]);
@@ -19,7 +20,7 @@ export const LiveTestChat: React.FC = () => {
     setDebugInfo(null);
 
     try {
-      const res = await fetch('/admin/coach-studio/test-chat', {
+      const res = await fetchWithAuth('/admin/coach-studio/test-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

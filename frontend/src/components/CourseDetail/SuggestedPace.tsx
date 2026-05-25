@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { fetchWithAuth } from '../../stores/authStore';
 
 export const SuggestedPace = ({ courseId }: { courseId: string }) => {
   const [paceData, setPaceData] = useState<any>(null);
@@ -9,10 +10,7 @@ export const SuggestedPace = ({ courseId }: { courseId: string }) => {
   useEffect(() => {
     const fetchPace = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/courses/${courseId}/pace`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetchWithAuth(`/api/courses/${courseId}/pace`);
         if (res.ok) {
           const data = await res.json();
           setPaceData(data);

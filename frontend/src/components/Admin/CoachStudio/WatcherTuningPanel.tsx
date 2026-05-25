@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithAuth } from '../../../stores/authStore';
 
 export const WatcherTuningPanel: React.FC = () => {
   const [data, setData] = useState({
@@ -9,13 +10,13 @@ export const WatcherTuningPanel: React.FC = () => {
   });
 
   useEffect(() => {
-    fetch('/admin/coach-studio/watchers')
+    fetchWithAuth('/admin/coach-studio/watchers')
       .then(res => res.json())
       .then(d => setData(d));
   }, []);
 
   const handleSave = (agent_name: string, payload: any) => {
-    fetch(`/admin/coach-studio/watchers/${agent_name}`, {
+    fetchWithAuth(`/admin/coach-studio/watchers/${agent_name}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

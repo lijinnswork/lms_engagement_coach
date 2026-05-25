@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithAuth } from '../../../stores/authStore';
 
 export const PersonaPanel: React.FC = () => {
   const [data, setData] = useState({
@@ -11,14 +12,14 @@ export const PersonaPanel: React.FC = () => {
   const allTraits = ['Warm', 'Casual', 'Empathetic', 'Curious', 'Formal', 'Motivational', 'Direct', 'Humorous'];
 
   useEffect(() => {
-    fetch('/admin/coach-studio/persona')
+    fetchWithAuth('/admin/coach-studio/persona')
       .then(res => res.json())
       .then(d => setData(d))
       .catch(console.error);
   }, []);
 
   const handleSave = () => {
-    fetch('/admin/coach-studio/persona', {
+    fetchWithAuth('/admin/coach-studio/persona', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
