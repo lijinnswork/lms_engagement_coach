@@ -82,6 +82,7 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
         const data = await clone.json();
         if (data.detail === "Could not validate credentials" || data.detail === "Session revoked") {
           console.error("FATAL AUTH ERROR, logging out due to:", data.detail, "URL:", url);
+          alert(`FATAL AUTH ERROR: Logged out due to 401 from ${url}. Detail: ${data.detail}`);
           useAuthStore.getState().logout();
           window.location.href = '/login';
         } else {
