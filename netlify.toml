@@ -4,8 +4,20 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/api/courses"
+  to = "https://lms-backend-api-8njf.onrender.com/api/courses"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/courses/*"
   to = "https://lms-backend-api-8njf.onrender.com/api/courses/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/dashboard"
+  to = "https://lms-backend-api-8njf.onrender.com/api/dashboard"
   status = 200
   force = true
 
@@ -16,8 +28,20 @@
   force = true
 
 [[redirects]]
+  from = "/api/reminders"
+  to = "https://lms-backend-api-8njf.onrender.com/api/reminders"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/reminders/*"
   to = "https://lms-backend-api-8njf.onrender.com/api/reminders/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/notifications"
+  to = "https://lms-backend-api-8njf.onrender.com/api/notifications"
   status = 200
   force = true
 
@@ -28,14 +52,32 @@
   force = true
 
 [[redirects]]
+  from = "/api"
+  to = "https://lms-backend-api-8njf.onrender.com"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/*"
   to = "https://lms-backend-api-8njf.onrender.com/:splat"
   status = 200
   force = true
 
 [[redirects]]
+  from = "/coach"
+  to = "https://lms-backend-api-8njf.onrender.com/coach"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/coach/*"
   to = "https://lms-backend-api-8njf.onrender.com/coach/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/admin"
+  to = "https://lms-backend-api-8njf.onrender.com/admin"
   status = 200
   force = true
 
