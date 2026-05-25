@@ -36,6 +36,9 @@ async def get_activity_feed(current_user: User = Depends(require_admin_view)):
 # USERS ENDPOINTS
 # ==========================================
 
+import uuid
+from app.db.models.announcement import Announcement
+
 @router.get("/users")
 async def list_users(current_user: User = Depends(require_admin_view), db: Session = Depends(get_db)):
     users = db.query(User).all()
@@ -47,12 +50,47 @@ async def create_user(user_data: dict, current_user: User = Depends(require_admi
 
 @router.patch("/users/{user_id}")
 async def update_user(user_id: str, update_data: dict, current_user: User = Depends(require_admin_manage), db: Session = Depends(get_db)):
-    # Simple mock return
-    return {"message": "User updated"}
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+    
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if "lms_username" in update_data:
+        user.lms_username = update_data["lms_username"]
+    if "full_name" in update_data:
+        user.full_name = update_data["full_name"]
+    if "email" in update_data:
+        user.email = update_data["email"].lower()
+    if "role" in update_data:
+        user.role = update_data["role"]
+    if "status" in update_data:
+        user.is_active = (update_data["status"] == "Active")
+        
+    db.commit()
+    db.refresh(user)
+    return user
 
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str, current_user: User = Depends(require_super_admin), db: Session = Depends(get_db)):
-    return {"message": "User deleted"}
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+        
+    user = db.query(User).filter(User.id == uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # Set created_by to NULL for any announcements created by this user
+    db.query(Announcement).filter(Announcement.created_by == uid).update({Announcement.created_by: None})
+    
+    db.delete(user)
+    db.commit()
+    return {"message": "User deleted successfully"}
 
 @router.get("/users/{user_id}/profile")
 async def get_user_profile(user_id: str, current_user: User = Depends(require_admin_view)):
