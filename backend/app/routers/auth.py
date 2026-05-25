@@ -84,11 +84,9 @@ def login(
     db.commit()
     db.refresh(new_session)
     
-    # Trigger background sync if user has an lms_username but no cache exists
+    # Trigger background sync every time the user logs in if they have an lms_username
     if user.lms_username:
-        cache_exists = db.query(LMSDataCache).filter(LMSDataCache.user_id == user.id).first()
-        if not cache_exists:
-            background_tasks.add_task(sync_lms_background, str(user.id))
+        background_tasks.add_task(sync_lms_background, str(user.id))
     
     access_token = create_access_token(data={"sub": str(user.id), "session_id": str(new_session.id)})
     return {"access_token": access_token, "token_type": "bearer"}
