@@ -1,15 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.db.models import User
+from app.db.models.lms_data_cache import LMSDataCache
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
 from app.services.auth_service import get_password_hash, verify_password, create_access_token
+from app.services.openedx_client import openedx_client
 from datetime import datetime, timezone
-from fastapi import Request
 from user_agents import parse
 from app.db.models.user_session import UserSession
+import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+async def sync_lms_background(user_id: str):
+    db = SessionLocal()
+    try:
+        uid = uuid.UUID(user_id)
+        user = db.query(User).filter(User.id == uid).first()
+        if user and user.lms_username:
+            logger.info(f"Background Sync: Triggering initial sync for user {user.email}")
+            await openedx_client.sync_user_lms_data(db, user)
+    except Exception as e:
+        logger.error(f"Background Sync Error for user_id {user_id}: {e}")
+    finally:
+        db.close()
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def signup(user_data: UserCreate, db: Session = Depends(get_db)):
@@ -31,7 +49,12 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 @router.post("/login", response_model=Token)
-def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
+def login(
+    login_data: UserLogin,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.email == login_data.email.lower()).first()
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
@@ -61,5 +84,12 @@ def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)
     db.commit()
     db.refresh(new_session)
     
+    # Trigger background sync if user has an lms_username but no cache exists
+    if user.lms_username:
+        cache_exists = db.query(LMSDataCache).filter(LMSDataCache.user_id == user.id).first()
+        if not cache_exists:
+            background_tasks.add_task(sync_lms_background, str(user.id))
+    
     access_token = create_access_token(data={"sub": str(user.id), "session_id": str(new_session.id)})
     return {"access_token": access_token, "token_type": "bearer"}
+
