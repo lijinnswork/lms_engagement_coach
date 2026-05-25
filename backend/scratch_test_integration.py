@@ -4,7 +4,7 @@ import json
 BASE_URL = "http://localhost:8088"
 
 def test_integration():
-    client = httpx.Client()
+    client = httpx.Client(timeout=10.0)
     print("1. Testing login with seeded user...")
     login_payload = {
         "email": "lijin.ns@iimbx.iimb.ac.in",
