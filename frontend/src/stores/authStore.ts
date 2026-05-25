@@ -77,8 +77,18 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     // Only clear credentials and logout if we actually sent a token that was rejected.
     // This prevents premature logout loops due to missing headers on non-essential fetches.
     if (hasAuthHeader) {
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+      try {
+        const clone = response.clone();
+        const data = await clone.json();
+        if (data.detail === "Could not validate credentials" || data.detail === "Session revoked") {
+          useAuthStore.getState().logout();
+          window.location.href = '/login';
+        } else {
+          console.error("Non-fatal 401 ERROR from:", url, data);
+        }
+      } catch (e) {
+        console.error("Non-fatal 401 ERROR (unparseable) from:", url);
+      }
     }
   }
 
