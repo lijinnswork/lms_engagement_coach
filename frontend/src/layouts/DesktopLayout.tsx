@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, Target, Settings, Lock, PanelLeftClose, PanelLeftOpen, Bell, User as UserIcon } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
-import { mockUser, mockCoachMessage, mockNextAction } from '../data/mockDashboard';
+
 import { CoachCard } from '../components/dashboard/CoachCard';
 import { NextActionCard } from '../components/dashboard/NextActionCard';
 import { GoalsList } from '../components/dashboard/GoalsList';
@@ -18,6 +18,87 @@ import { useRemindersStore } from '../store/useRemindersStore';
 import { SettingsMasterPanel } from '../components/settings/SettingsMasterPanel';
 import { AccountMasterPanel } from '../components/account/AccountMasterPanel';
 import { LearningRhythm } from '../components/dashboard/LearningRhythm';
+
+interface ConversationSidebarItemProps {
+  conversation: any;
+  isActive: boolean;
+  onSelect: (id: string) => void;
+  onRename: (id: string, newTitle: string) => Promise<void> | void;
+}
+
+const ConversationSidebarItem = ({ conversation, isActive, onSelect, onRename }: ConversationSidebarItemProps) => {
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [title, setTitle] = React.useState(conversation.summary || '');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const displayTitle = conversation.summary && conversation.summary !== "New Chat"
+    ? conversation.summary
+    : `Conversation — ${new Date(conversation.started_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+
+  React.useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = async () => {
+    setIsEditing(false);
+    if (title.trim() && title.trim() !== conversation.summary) {
+      setSaving(true);
+      try {
+        await onRename(conversation.id, title.trim());
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaving(false);
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setTitle(conversation.summary || '');
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+        className="w-full text-[12px] bg-bg-primary dark:bg-bg-dark border border-accent-sage rounded px-1.5 py-0.5 text-text-primary dark:text-text-darkPri focus:outline-none focus:ring-1 focus:ring-accent-sage"
+      />
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 w-full justify-between group">
+      <button 
+        onClick={() => onSelect(conversation.id)} 
+        onDoubleClick={() => setIsEditing(true)}
+        className={`text-[12px] truncate flex-1 text-left py-1 transition-colors ${isActive ? 'text-text-primary dark:text-text-darkPri font-medium' : 'text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri'}`}
+        title={displayTitle}
+        disabled={saving}
+      >
+        {displayTitle}
+      </button>
+      {saving && (
+        <span className="text-[10px] italic text-accent-sage shrink-0 animate-pulse">
+          Saving...
+        </span>
+      )}
+    </div>
+  );
+};
 
 const containerVariants = {
   hidden: {},
@@ -41,8 +122,41 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
   const { isSettingsOpen, setSettingsOpen, isAccountOpen, setAccountOpen, sidebarVisible, setSidebarVisible } = useDashboardStore();
   const { pendingCount, fetchReminders } = useRemindersStore();
   const { user } = useAuthStore();
-  const { conversations, createNewConversation, switchConversation, conversationId, fetchConversations } = useCoachStore();
+  const { conversations, createNewConversation, switchConversation, conversationId, fetchConversations, renameConversation } = useCoachStore();
   const [coachDropdownOpen, setCoachDropdownOpen] = React.useState(false);
+  const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    fetch('/api/courses')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setEnrolledCourses(data);
+        }
+      })
+      .catch(e => console.error(e));
+  }, []);
+
+  const inProgress = enrolledCourses.filter((c: any) => {
+    const progressPercent = c.progress_percent ?? c.progress ?? 0;
+    return progressPercent < 100;
+  });
+  
+  const bestCourse = inProgress.sort((a: any, b: any) => {
+    const progressA = a.progress_percent ?? a.progress ?? 0;
+    const progressB = b.progress_percent ?? b.progress ?? 0;
+    return progressB - progressA;
+  })[0];
+  
+  const nextAction = bestCourse ? {
+    label: 'Suggested next step',
+    text: `Your ${bestCourse.course_name || bestCourse.name || 'course'} is ${bestCourse.progress_percent ?? bestCourse.progress ?? 0}% done — keep going to finish it!`,
+    courseId: bestCourse.course_id || bestCourse.id
+  } : {
+    label: 'Suggested next step',
+    text: "You're all clear on your active courses! Let me know if you want to set a new goal.",
+    courseId: ''
+  };
 
   React.useEffect(() => {
     fetchReminders();
@@ -153,7 +267,7 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
           
           <div className="flex-1 flex items-center justify-between px-6">
             <h1 className="font-serif text-[32px] font-bold text-text-primary dark:text-text-darkPri leading-none">
-              {getGreeting()}, {(user?.full_name || mockUser.name).split(' ')[0]}
+              {getGreeting()}, {(user?.full_name || 'Learner').split(' ')[0]}
             </h1>
             <div className="flex items-center gap-3 pr-4">
               <button 
@@ -220,14 +334,13 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
                     </button>
                     <div className="flex flex-col gap-1 mt-1">
                       {conversations.map(c => (
-                        <button 
-                          key={c.id} 
-                          onClick={() => switchConversation(c.id)} 
-                          className={`text-[12px] truncate w-full text-left py-1 transition-colors ${conversationId === c.id ? 'text-text-primary dark:text-text-darkPri font-medium' : 'text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri'}`}
-                          title={c.summary || 'Chat session'}
-                        >
-                          {new Date(c.started_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                        </button>
+                        <ConversationSidebarItem
+                          key={c.id}
+                          conversation={c}
+                          isActive={conversationId === c.id}
+                          onSelect={switchConversation}
+                          onRename={renameConversation}
+                        />
                       ))}
                     </div>
                   </div>
@@ -282,10 +395,10 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
                 </motion.div>
                 
                 <motion.div variants={cardVariants}>
-                  <CoachCard message={mockCoachMessage.text} triggeredBy={mockCoachMessage.triggeredBy} />
+                  <CoachCard message="I'm keeping track of your learning rhythm and goals. Let me know if you want to chat about your progress!" triggeredBy="momentum" />
                 </motion.div>
                 <motion.div variants={cardVariants}>
-                  <NextActionCard label={mockNextAction.label} text={mockNextAction.text} courseId={mockNextAction.courseId} />
+                  <NextActionCard label={nextAction.label} text={nextAction.text} courseId={nextAction.courseId} />
                 </motion.div>
                 
                 <motion.div variants={cardVariants} className="mt-4">

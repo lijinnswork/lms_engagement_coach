@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Check, X, Edit2 } from 'lucide-react';
 import { useRemindersStore } from '../../store/useRemindersStore';
+import { fetchWithAuth } from '../../stores/authStore';
 
 export const CoachSuggestions: React.FC<{ onEdit: (suggestion: any) => void }> = ({ onEdit }) => {
   const { suggestions } = useRemindersStore();
@@ -42,14 +43,32 @@ export const CoachSuggestions: React.FC<{ onEdit: (suggestion: any) => void }> =
                 <Edit2 size={16} />
               </button>
               <button 
-                onClick={() => alert("Suggestion dismissed!")}
+                onClick={async () => {
+                  try {
+                    const res = await fetchWithAuth(`/api/reminders/suggestions/${suggestion.id}/dismiss`, { method: 'POST' });
+                    if (res.ok) {
+                      useRemindersStore.getState().fetchReminders();
+                    }
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
                 className="p-2 rounded-full hover:bg-red-500/10 text-red-500 transition-colors"
                 title="Dismiss"
               >
                 <X size={20} />
               </button>
               <button 
-                onClick={() => alert("Suggestion accepted!")}
+                onClick={async () => {
+                  try {
+                    const res = await fetchWithAuth(`/api/reminders/suggestions/${suggestion.id}/accept`, { method: 'POST' });
+                    if (res.ok) {
+                      useRemindersStore.getState().fetchReminders();
+                    }
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-[var(--coach-primary)] text-white rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 <Check size={16} />
@@ -62,3 +81,4 @@ export const CoachSuggestions: React.FC<{ onEdit: (suggestion: any) => void }> =
     </div>
   );
 };
+

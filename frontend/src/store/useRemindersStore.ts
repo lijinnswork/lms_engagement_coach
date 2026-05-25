@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { fetchWithAuth } from '../stores/authStore';
 
 interface Reminder {
   id: string;
@@ -23,58 +24,46 @@ export const useRemindersStore = create<RemindersStore>((set) => ({
   assessments: { overdue: [], today: [], tomorrow: [], this_week: [] },
   pendingCount: 0,
   fetchReminders: async () => {
-    // In real app, fetch from API. Mocking for now.
-    const reminders = {
-      today: [
-        { id: '1', title: 'Calculus Assignment', reminder_type: 'assignment_deadline', date: new Date().toISOString(), time: '18:00', status: 'active' }
-      ],
-      tomorrow: [],
-      week: [],
-      later: [],
-      completed: []
-    };
-    
-    const suggestions = [
-      {
-        id: 's1',
-        suggested_title: 'Study Session for Linear Algebra',
-        suggested_type: 'study_session',
-        suggested_date: new Date().toISOString(),
-        suggested_time: '19:00',
-        reasoning: 'Your pacing is behind, and you have no sessions planned.',
-        status: 'pending'
+    try {
+      // 1. Fetch user reminders
+      const remindersRes = await fetchWithAuth('/api/reminders');
+      let reminders = { today: [], tomorrow: [], week: [], later: [], completed: [] };
+      if (remindersRes.ok) {
+        reminders = await remindersRes.json();
       }
-    ];
 
-    const assessments = {
-      overdue: [
-        { id: 'a1', name: 'Python Quiz 2', course_name: 'Python Fundamentals', status: 'Was due Apr 18' }
-      ],
-      today: [
-        { id: 'a2', name: 'UX Design Assignment 2', course_name: 'UX Design Foundations', status: 'Due by 11:59 PM' }
-      ],
-      tomorrow: [
-        { id: 'a3', name: 'Data Science Quiz 3', course_name: 'Data Science Basics', status: 'Due by 5:00 PM' }
-      ],
-      this_week: [
-        { id: 'a4', name: 'Python Fundamentals Lab 4', course_name: 'Python Fundamentals', status: 'Fri, Apr 25' }
-      ]
-    };
+      // 2. Fetch coach reminder suggestions
+      const suggestionsRes = await fetchWithAuth('/api/reminders/suggestions');
+      let suggestions = [];
+      if (suggestionsRes.ok) {
+        suggestions = await suggestionsRes.json();
+      }
 
-    // Calculate total pending actionable items shown on the screen
-    const pendingCount = 
-      reminders.today.length + 
-      suggestions.length + 
-      assessments.overdue.length + 
-      assessments.today.length + 
-      assessments.tomorrow.length + 
-      assessments.this_week.length;
+      // 3. Fetch LMS upcoming assignments
+      const assessmentsRes = await fetchWithAuth('/api/courses/upcoming-assignments');
+      let assessments = { overdue: [], today: [], tomorrow: [], this_week: [] };
+      if (assessmentsRes.ok) {
+        assessments = await assessmentsRes.json();
+      }
 
-    set({
-      reminders,
-      suggestions,
-      assessments,
-      pendingCount
-    });
+      // Calculate total pending actionable items shown on the screen
+      const pendingCount = 
+        (reminders.today?.length || 0) + 
+        (suggestions?.length || 0) + 
+        (assessments.overdue?.length || 0) + 
+        (assessments.today?.length || 0) + 
+        (assessments.tomorrow?.length || 0) + 
+        (assessments.this_week?.length || 0);
+
+      set({
+        reminders,
+        suggestions,
+        assessments,
+        pendingCount
+      });
+    } catch (e) {
+      console.error("Failed to fetch reminders and assignments", e);
+    }
   }
 }));
+

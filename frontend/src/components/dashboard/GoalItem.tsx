@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export const GoalItem = ({ goal, onToggle }: { goal: any, onToggle?: (id: string) => void }) => {
   // Gracefully handle mock vs real API data
@@ -42,15 +43,25 @@ export const GoalItem = ({ goal, onToggle }: { goal: any, onToggle?: (id: string
                 : 'border border-text-secondary dark:border-text-darkSec'
           }`}
         >
-          {isDone && <Check size={10} className="text-white" strokeWidth={3} />}
+          {isDone && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 25 }}
+            >
+              <Check size={10} className="text-white" strokeWidth={3} />
+            </motion.div>
+          )}
         </button>
       </div>
       
       <div className="flex-1 min-w-0 pr-2">
-        <div className={`text-[11px] font-sans line-clamp-1 mb-0.5 ${
-          isDone ? 'text-text-secondary dark:text-text-darkSec' : 'text-text-primary dark:text-text-darkPri'
-        }`}>
-          {name}
+        <div className="relative overflow-hidden">
+          <div className={`text-[11px] font-sans line-clamp-1 mb-0.5 transition-all duration-300 ${
+            isDone ? 'text-text-secondary dark:text-text-darkSec line-through opacity-60' : 'text-text-primary dark:text-text-darkPri'
+          }`}>
+            {name}
+          </div>
         </div>
         <div className="text-[9px] font-sans text-text-secondary dark:text-text-darkSec line-clamp-1">
           {meta}

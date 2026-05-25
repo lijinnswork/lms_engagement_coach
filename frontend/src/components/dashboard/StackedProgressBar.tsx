@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { mockCourses } from '../../data/mockDashboard';
+
 
 // Ensure the type matches what might come from the API or mock
 export interface CourseProgressData {
@@ -63,16 +63,8 @@ export const StackedProgressBar = () => {
           throw new Error('Failed to fetch');
         }
       } catch (e) {
-        // Fallback to mock data
-        const mappedMock = mockCourses.map(c => ({
-          id: c.id,
-          name: c.name,
-          progress_percent: c.progress,
-          total_items: c.modulesTotal,
-          items_completed: c.modulesComplete,
-          enrollment_active: true
-        }));
-        setCourses(mappedMock);
+        console.error("Failed to fetch courses", e);
+        setCourses([]);
       } finally {
         setLoading(false);
       }
@@ -119,7 +111,13 @@ export const StackedProgressBar = () => {
     }
   }, [loading, overallProgress]);
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="w-full flex justify-center items-center py-6">
+        <div className="w-6 h-6 border-2 border-accent-sage border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   // Empty state: 0 enrolled
   if (courses.length === 0) {

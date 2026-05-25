@@ -39,6 +39,8 @@ export const Goals: React.FC = () => {
   const [newCourseId, setNewCourseId] = useState('');
   const [newTargetDate, setNewTargetDate] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [courses, setCourses] = useState<any[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const breakpoint = useBreakpoint();
   
@@ -68,6 +70,17 @@ export const Goals: React.FC = () => {
 
   useEffect(() => {
     fetchGoals();
+    fetch('/api/courses')
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error();
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setCourses(data);
+        }
+      })
+      .catch(e => console.error("Failed to fetch courses dropdown", e));
   }, [fetchGoals]);
 
   const handleUpdateStatus = async (id: string, status: string) => {
@@ -103,10 +116,12 @@ export const Goals: React.FC = () => {
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
+    setErrorMsg(null);
     
     try {
+      let res;
       if (editingGoal) {
-        await fetch(`/api/goals/${editingGoal.id}`, {
+        res = await fetch(`/api/goals/${editingGoal.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -118,7 +133,7 @@ export const Goals: React.FC = () => {
           })
         });
       } else {
-        await fetch('/api/goals', {
+        res = await fetch('/api/goals', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -129,12 +144,20 @@ export const Goals: React.FC = () => {
           })
         });
       }
+      
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ detail: 'Failed to save goal' }));
+        throw new Error(errData.detail || 'Failed to save goal');
+      }
+      
       setIsAdding(false);
       setEditingGoal(null);
       resetForm();
+      setToastMsg(editingGoal ? "Goal updated ✓" : "Goal created ✓");
       fetchGoals();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setErrorMsg(e.message || "Failed to save goal. Please check your fields.");
     }
   };
   
@@ -143,6 +166,7 @@ export const Goals: React.FC = () => {
     setNewCourseId('');
     setNewTargetDate('');
     setNewDescription('');
+    setErrorMsg(null);
   }
   
   const openEditModal = (goal: Goal) => {
@@ -294,8 +318,11 @@ export const Goals: React.FC = () => {
                     className="w-full bg-bg-secondary dark:bg-bg-darkCard border border-border-light dark:border-border-dark rounded-xl px-4 py-3 text-text-primary dark:text-text-darkPri focus:outline-none"
                   >
                     <option value="">[None] General goal</option>
-                    <option value="course-v1:edX+DemoX+Demo_Course">edX Demonstration Course</option>
-                    <option value="CS50">CS50 Intro to Computer Science</option>
+                    {courses.map(course => (
+                      <option key={course.course_id} value={course.course_id}>
+                        {course.course_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 
@@ -320,6 +347,12 @@ export const Goals: React.FC = () => {
                     className="w-full bg-bg-secondary dark:bg-bg-darkCard border border-border-light dark:border-border-dark rounded-xl px-4 py-3 text-text-primary dark:text-text-darkPri focus:outline-none focus:border-accent-primary resize-none"
                   />
                 </div>
+                
+                {errorMsg && (
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-[13px] rounded-xl px-4 py-2 font-medium">
+                    ⚠️ {errorMsg}
+                  </div>
+                )}
 
                 <div className="flex gap-2 justify-end mt-4 pt-4 border-t border-border-light dark:border-border-dark">
                   <GentleButton type="button" variant="text" onClick={() => {setIsAdding(false); setEditingGoal(null);}}>Cancel</GentleButton>

@@ -20,6 +20,7 @@ interface CoachStore {
   initConversation: () => Promise<void>;
   fetchConversations: () => Promise<void>;
   createNewConversation: () => Promise<void>;
+  renameConversation: (id: string, newTitle: string) => Promise<void>;
   switchConversation: (id: string) => Promise<void>;
   fetchMessages: (cId: string) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
@@ -63,6 +64,23 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       }
     } catch (e) {
       console.error("Failed to create conversation", e);
+    }
+  },
+
+  renameConversation: async (id: string, newTitle: string) => {
+    try {
+      const res = await fetchWithAuth(`/api/coach/conversations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle })
+      });
+      if (res.ok) {
+        set((state) => ({
+          conversations: state.conversations.map(c => c.id === id ? { ...c, summary: newTitle } : c)
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to rename conversation", e);
     }
   },
 

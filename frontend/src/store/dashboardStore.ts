@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { mockGoals } from '../data/mockDashboard'
 import { fetchWithAuth } from '../stores/authStore'
 
 
@@ -44,7 +43,7 @@ export const useDashboardStore = create<DashboardStore>((set) => ({
   setReplyText: (text: string) => set({ replyText: text }),
 
   // Goals
-  goals: mockGoals as any[],
+  goals: [],
   setGoals: (goals) => set({ goals }),
   toggleGoalDone: (id) => {
     set((state) => {

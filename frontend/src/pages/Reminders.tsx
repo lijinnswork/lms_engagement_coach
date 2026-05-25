@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { CoachSuggestions } from '../components/Reminders/CoachSuggestions';
@@ -16,7 +16,11 @@ export const Reminders: React.FC = () => {
   const [editingReminder, setEditingReminder] = useState<any>(null);
   const breakpoint = useBreakpoint();
   
-  const { suggestions } = useRemindersStore();
+  const { fetchReminders, reminders, assessments, suggestions } = useRemindersStore();
+
+  useEffect(() => {
+    fetchReminders();
+  }, [fetchReminders]);
 
   const handleOpenModal = (reminder?: any) => {
     setEditingReminder(reminder || null);
@@ -52,13 +56,29 @@ export const Reminders: React.FC = () => {
             </button>
           </div>
 
-          {suggestions.length > 0 && (
-            <CoachSuggestions onEdit={handleOpenModal} />
+          {(!reminders.today?.length && !reminders.tomorrow?.length && !reminders.week?.length && !reminders.later?.length && !reminders.completed?.length && !assessments.overdue?.length && !assessments.today?.length && !assessments.tomorrow?.length && !assessments.this_week?.length && suggestions.length === 0) ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-[var(--bg-surface)] rounded-[24px] border border-dashed border-[var(--border-light)] dark:border-[var(--border-dark)] p-8">
+              <p className="text-[14px] text-[var(--text-secondary)] mb-4 max-w-[320px] leading-relaxed font-sans font-medium">
+                No reminders set yet. Create a reminder to stay on track, or let your coach suggest some based on your schedule.
+              </p>
+              <button 
+                onClick={() => handleOpenModal()}
+                className="px-6 py-2 bg-[var(--coach-primary)] text-white rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                + Create a reminder
+              </button>
+            </div>
+          ) : (
+            <>
+              {suggestions.length > 0 && (
+                <CoachSuggestions onEdit={handleOpenModal} />
+              )}
+
+              <AssessmentReminders />
+
+              <RemindersList onEdit={handleOpenModal} />
+            </>
           )}
-
-          <AssessmentReminders />
-
-          <RemindersList onEdit={handleOpenModal} />
 
         </div>
       </div>

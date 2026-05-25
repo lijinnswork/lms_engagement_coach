@@ -3,7 +3,7 @@ import React from 'react';
 import { Home, MessageSquare, Target, Settings, Bell } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { mockUser, mockCoachMessage, mockNextAction } from '../data/mockDashboard';
+
 import { CoachCard } from '../components/dashboard/CoachCard';
 import { NextActionCard } from '../components/dashboard/NextActionCard';
 import { GoalsList } from '../components/dashboard/GoalsList';
@@ -35,6 +35,46 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
   const location = useLocation();
   const { user } = useAuthStore();
   const { pendingCount, fetchReminders } = useRemindersStore();
+  const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    fetch('/api/courses')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setEnrolledCourses(data);
+        }
+      })
+      .catch(e => console.error(e));
+  }, []);
+
+  const inProgress = enrolledCourses.filter((c: any) => {
+    const progressPercent = c.progress_percent ?? c.progress ?? 0;
+    return progressPercent < 100;
+  });
+  
+  const bestCourse = inProgress.sort((a: any, b: any) => {
+    const progressA = a.progress_percent ?? a.progress ?? 0;
+    const progressB = b.progress_percent ?? b.progress ?? 0;
+    return progressB - progressA;
+  })[0];
+  
+  const nextAction = bestCourse ? {
+    label: 'Suggested next step',
+    text: `Your ${bestCourse.course_name || bestCourse.name || 'course'} is ${bestCourse.progress_percent ?? bestCourse.progress ?? 0}% done — keep going to finish it!`,
+    courseId: bestCourse.course_id || bestCourse.id
+  } : {
+    label: 'Suggested next step',
+    text: "You're all clear on your active courses! Let me know if you want to set a new goal.",
+    courseId: ''
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   React.useEffect(() => {
     fetchReminders();
@@ -56,7 +96,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
           <AnnouncementBanner />
           <div className="px-6 pt-6 pb-4 flex justify-between items-center bg-bg-primary/95 dark:bg-bg-dark/95 backdrop-blur-sm border-b border-border-light dark:border-border-dark">
             <h1 className="font-serif text-[24px] text-text-primary dark:text-text-darkPri">
-              {mockUser.greeting}, {user?.full_name || mockUser.name}
+              {getGreeting()}, {(user?.full_name || 'Learner').split(' ')[0]}
             </h1>
             <button onClick={() => navigate('/settings')} className="text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri transition-colors">
               <Settings size={20} />
@@ -82,10 +122,10 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
         </motion.div>
         
         <motion.div variants={cardVariants}>
-          <CoachCard message={mockCoachMessage.text} triggeredBy={mockCoachMessage.triggeredBy} />
+          <CoachCard message="I'm keeping track of your learning rhythm and goals. Let me know if you want to chat about your progress!" triggeredBy="momentum" />
         </motion.div>
         <motion.div variants={cardVariants}>
-          <NextActionCard label={mockNextAction.label} text={mockNextAction.text} courseId={mockNextAction.courseId} />
+          <NextActionCard label={nextAction.label} text={nextAction.text} courseId={nextAction.courseId} />
         </motion.div>
         
         <motion.div variants={cardVariants} className="mt-2">

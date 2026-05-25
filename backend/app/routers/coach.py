@@ -59,6 +59,18 @@ def create_conversation(db: Session = Depends(get_db), current_user: User = Depe
     db.refresh(convo)
     return convo
 
+@router.patch("/conversations/{conversation_id}", response_model=CoachConversationResponse)
+def rename_conversation(conversation_id: uuid.UUID, data: dict, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    convo = db.query(CoachConversation).filter(CoachConversation.id == conversation_id, CoachConversation.user_id == current_user.id).first()
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if "title" in data:
+        convo.summary = data["title"]
+    db.commit()
+    db.refresh(convo)
+    return convo
+
+
 @router.get("/messages", response_model=PaginatedMessagesResponse)
 def get_messages(
     conversation_id: uuid.UUID,

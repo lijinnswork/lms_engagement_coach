@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Clock, Repeat, Save } from 'lucide-react';
+import { fetchWithAuth } from '../../stores/authStore';
+import { useRemindersStore } from '../../store/useRemindersStore';
 
 interface ReminderModalProps {
   isOpen: boolean;
@@ -14,9 +16,11 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, i
   const [time, setTime] = useState('');
   const [repeat, setRepeat] = useState('none');
   const [notes, setNotes] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
+      setErrorMsg(null);
       if (initialData) {
         setTitle(initialData.title || initialData.suggested_title || '');
         setDate(initialData.date || initialData.suggested_date || new Date().toISOString().split('T')[0]);
@@ -33,9 +37,65 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, i
     }
   }, [isOpen, initialData]);
 
-  const handleSave = () => {
-    // In real app, call store or API
-    onClose();
+  const handleSave = async () => {
+    if (!title.trim()) return;
+    setErrorMsg(null);
+
+    try {
+      let res;
+      if (initialData && initialData.id && !initialData.suggested_title) {
+        res = await fetchWithAuth(`/api/reminders/${initialData.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            date,
+            time,
+            repeat,
+            notes
+          })
+        });
+      } else {
+        res = await fetchWithAuth('/api/reminders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            reminder_type: 'custom',
+            date,
+            time,
+            repeat,
+            notes
+          })
+        });
+
+        if (initialData && initialData.suggested_title && initialData.id) {
+          await fetchWithAuth(`/api/reminders/suggestions/${initialData.id}/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title,
+              reminder_type: 'custom',
+              date,
+              time,
+              repeat,
+              notes
+            })
+          });
+        }
+      }
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ detail: 'Failed to save reminder' }));
+        throw new Error(errData.detail || 'Failed to save reminder');
+      }
+
+      useRemindersStore.getState().fetchReminders();
+      onClose();
+    } catch (e: any) {
+      console.error(e);
+      setErrorMsg(e.message || "Failed to save reminder. Please check your fields.");
+    }
   };
 
   if (!isOpen) return null;
@@ -128,6 +188,12 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({ isOpen, onClose, i
                 className="w-full bg-[var(--bg-app)] border border-[var(--border-light)] dark:border-[var(--border-dark)] rounded-[12px] px-4 py-3 text-[15px] font-medium text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--coach-primary)] transition-colors resize-none"
               />
             </div>
+            
+            {errorMsg && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-[13px] rounded-xl px-4 py-2 font-medium">
+                ⚠️ {errorMsg}
+              </div>
+            )}
           </div>
 
           <div className="p-6 bg-[var(--bg-app)] flex justify-end gap-3">

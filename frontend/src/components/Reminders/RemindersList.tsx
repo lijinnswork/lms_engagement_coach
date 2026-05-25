@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useRemindersStore } from '../../store/useRemindersStore';
+import { fetchWithAuth } from '../../stores/authStore';
 import { Clock, Calendar, CheckCircle2, ChevronRight, BellRing } from 'lucide-react';
 
 const ReminderItem: React.FC<{ reminder: any; onEdit: (r: any) => void }> = ({ reminder, onEdit }) => {
@@ -15,9 +16,27 @@ const ReminderItem: React.FC<{ reminder: any; onEdit: (r: any) => void }> = ({ r
     >
       <button 
         className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${isCompleted ? 'bg-green-500 border-green-500' : 'border-[var(--text-tertiary)] hover:border-[var(--coach-primary)]'}`}
-        onClick={(e) => {
+        onClick={async (e) => {
           e.stopPropagation();
-          alert(isCompleted ? "Marked as active!" : "Marked as complete!");
+          try {
+            const endpoint = isCompleted 
+              ? `/api/reminders/${reminder.id}` 
+              : `/api/reminders/${reminder.id}/complete`;
+            
+            const method = isCompleted ? 'PATCH' : 'POST';
+            const body = isCompleted ? JSON.stringify({ status: 'active' }) : undefined;
+            
+            const res = await fetchWithAuth(endpoint, {
+              method,
+              headers: { 'Content-Type': 'application/json' },
+              body
+            });
+            if (res.ok) {
+              useRemindersStore.getState().fetchReminders();
+            }
+          } catch (err) {
+            console.error(err);
+          }
         }}
       >
         {isCompleted && <CheckCircle2 size={14} className="text-white" />}
