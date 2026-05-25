@@ -8,7 +8,8 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 export const Signup: React.FC = () => {
-  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [lmsUsername, setLmsUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +30,8 @@ export const Signup: React.FC = () => {
         body: JSON.stringify({
           email: email.toLowerCase(),
           password: password,
-          full_name: username,
-          lms_username: username
+          full_name: fullName,
+          lms_username: lmsUsername
         })
       });
 
@@ -110,11 +111,22 @@ export const Signup: React.FC = () => {
         <SoftCard>
           <form onSubmit={handleSignup} className="space-y-6">
             <div>
+              <label className="block text-sm text-[var(--text-secondary)] mb-2">Full Name</label>
+              <input 
+                type="text" 
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter your full name"
+                className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
+                required
+              />
+            </div>
+            <div>
               <label className="block text-sm text-[var(--text-secondary)] mb-2">LMS Username</label>
               <input 
                 type="text" 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={lmsUsername}
+                onChange={(e) => setLmsUsername(e.target.value)}
                 placeholder="Enter your Open edX username"
                 className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
                 required

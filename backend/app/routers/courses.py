@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.db.models.user import User
+import logging
+
+logger = logging.getLogger(__name__)
 from app.db.models.lms_data_cache import LMSDataCache
 from app.db.models.goals import Goal
 from app.services.gemini_client import gemini_client
@@ -62,6 +65,16 @@ def get_mock_course_data(course_id: str):
 @router.get("/")
 async def get_courses_list(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
+    if not cache_entries and current_user.lms_username:
+        try:
+            logger.info(f"First-load sync for user {current_user.email}")
+            from app.services.openedx_client import openedx_client
+            await openedx_client.sync_user_lms_data(db, current_user)
+            # Re-query the cache
+            cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
+        except Exception as e:
+            logger.error(f"Synchronous first-load sync failed: {e}")
+            
     if not cache_entries:
         return []
     return [entry.data for entry in cache_entries]
