@@ -143,7 +143,7 @@ export const AgentControls: React.FC = () => {
     try {
       const url = nextState === 'Running' ? '/api/admin/agents/resume' : '/api/admin/agents/pause';
       await fetchWithAuth(url, { method: 'POST' });
-      setSchedulerStatus(prev => prev ? { ...prev, scheduler: nextState } : { scheduler: nextState });
+      setSchedulerStatus((prev: any) => prev ? { ...prev, scheduler: nextState } : { scheduler: nextState });
       alert(`Scheduler ${nextState === 'Running' ? 'resumed' : 'paused'} successfully.`);
     } catch (e) {
       console.error(e);
