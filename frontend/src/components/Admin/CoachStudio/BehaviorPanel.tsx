@@ -13,13 +13,13 @@ export const BehaviorPanel: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchWithAuth('/admin/coach-studio/behavior')
+    fetchWithAuth('/api/admin/coach-studio/behavior')
       .then(res => res.json())
       .then(d => setData(d));
   }, []);
 
   const handleSave = () => {
-    fetchWithAuth('/admin/coach-studio/behavior', {
+    fetchWithAuth('/api/admin/coach-studio/behavior', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

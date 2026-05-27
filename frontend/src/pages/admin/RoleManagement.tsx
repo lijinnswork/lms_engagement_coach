@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Shield, 
   Search, 
@@ -7,9 +7,11 @@ import {
   X,
   Mail,
   CheckCircle2,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchWithAuth } from '../../stores/authStore';
 
 interface AdminUser {
   id: string;
@@ -18,12 +20,6 @@ interface AdminUser {
   role: 'super_admin' | 'support_staff';
   addedAt: string;
 }
-
-const MOCK_ADMINS: AdminUser[] = [
-  { id: '1', name: 'Vishal Reddy', email: 'vishal.reddy@iimbx.iimb.ac.in', role: 'super_admin', addedAt: 'Oct 12, 2025' },
-  { id: '2', name: 'Lijin NS', email: 'lijin.ns@iimbx.iimb.ac.in', role: 'super_admin', addedAt: 'Apr 27, 2026' },
-  { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'support_staff', addedAt: 'Jan 15, 2026' }
-];
 
 const PERMISSIONS = {
   super_admin: {
@@ -57,7 +53,8 @@ const PERMISSIONS = {
 };
 
 export const RoleManagement: React.FC = () => {
-  const [admins, setAdmins] = useState<AdminUser[]>(MOCK_ADMINS);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -65,28 +62,87 @@ export const RoleManagement: React.FC = () => {
   const [newEmail, setNewEmail] = useState('');
   const [selectedRole, setSelectedRole] = useState<'super_admin' | 'support_staff'>('super_admin');
 
+  const loadAdmins = async () => {
+    try {
+      setLoading(true);
+      const res = await fetchWithAuth('/api/admin/users');
+      if (res.ok) {
+        const data = await res.json();
+        // Filter users that are support_staff or super_admin
+        const filtered = data
+          .filter((u: any) => u.role === 'super_admin' || u.role === 'support_staff')
+          .map((u: any) => ({
+            id: u.id,
+            name: u.full_name || u.email.split('@')[0],
+            email: u.email,
+            role: u.role as 'super_admin' | 'support_staff',
+            addedAt: u.created_at ? new Date(u.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'
+          }));
+        setAdmins(filtered);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAdmins();
+  }, []);
+
   const filteredAdmins = admins.filter(a => 
     a.name.toLowerCase().includes(search.toLowerCase()) || 
     a.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail) return;
     
-    setAdmins([
-      {
-        id: Date.now().toString(),
-        name: newEmail.split('@')[0],
-        email: newEmail,
-        role: selectedRole,
-        addedAt: 'Today'
-      },
-      ...admins
-    ]);
-    
-    setNewEmail('');
-    setIsModalOpen(false);
+    try {
+      const name = newEmail.split('@')[0];
+      const res = await fetchWithAuth('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: name.charAt(0).toUpperCase() + name.slice(1),
+          email: newEmail,
+          role: selectedRole,
+          lms_username: name
+        })
+      });
+      
+      if (res.ok) {
+        setNewEmail('');
+        setIsModalOpen(false);
+        await loadAdmins();
+      } else {
+        const data = await res.json();
+        alert(data.detail || 'Failed to invite administrator');
+      }
+    } catch(err) {
+      console.error(err);
+      alert('Error creating administrator');
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete administrator "${name}"? This action cannot be undone.`)) return;
+    try {
+      const res = await fetchWithAuth(`/api/admin/users/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        await loadAdmins();
+      } else {
+        const data = await res.json();
+        alert(data.detail || 'Failed to delete administrator');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting administrator');
+    }
   };
 
   return (
@@ -139,44 +195,55 @@ export const RoleManagement: React.FC = () => {
                </tr>
              </thead>
              <tbody className="text-gray-300">
-               {filteredAdmins.map(admin => {
-                 const roleData = PERMISSIONS[admin.role];
-                 return (
-                   <tr key={admin.id} className="border-b border-[#3A3F4D]/50 hover:bg-[#1C2128] transition-colors">
-                     <td className="py-4 px-5">
-                        <div className="flex items-center gap-3">
-                           <div className="w-8 h-8 rounded-full bg-[#1C2128] flex items-center justify-center font-bold text-white uppercase border border-[#3A3F4D]">
-                             {admin.name.charAt(0)}
-                           </div>
-                           <div>
-                             <p className="font-medium text-white">{admin.name}</p>
-                             <p className="text-xs text-gray-500">{admin.email}</p>
-                           </div>
-                        </div>
-                     </td>
-                     <td className="py-4 px-5">
-                        <div className="flex flex-col items-start gap-1">
-                           <span className={`px-2.5 py-1 rounded text-xs font-semibold tracking-wide border ${roleData.bg} ${roleData.color} ${roleData.border}`}>
-                             {roleData.title}
-                           </span>
-                           <span className="text-[11px] text-gray-500">{roleData.description}</span>
-                        </div>
-                     </td>
-                     <td className="py-4 px-5 text-gray-400">{admin.addedAt}</td>
-                     <td className="py-4 px-5 text-right">
-                       <button onClick={() => alert("More options clicked")} className="p-1.5 text-gray-500 hover:text-white hover:bg-[#3A3F4D] rounded transition-colors mr-1">
-                         <MoreHorizontal size={16} />
-                       </button>
-                       <button onClick={() => alert("Delete clicked")} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors">
-                         <Trash2 size={16} />
-                       </button>
-                     </td>
-                   </tr>
-                 );
-               })}
-               {filteredAdmins.length === 0 && (
+               {loading ? (
                  <tr>
-                   <td colSpan={4} className="py-12 text-center text-gray-500">
+                   <td colSpan={4} className="py-12 text-center text-gray-500 font-sans">
+                     <div className="flex justify-center items-center gap-2">
+                       <Loader2 className="animate-spin text-[#7B9EA8]" size={18} />
+                       Loading administrators...
+                     </div>
+                   </td>
+                 </tr>
+               ) : (
+                 filteredAdmins.map(admin => {
+                   const roleData = PERMISSIONS[admin.role] || PERMISSIONS.support_staff;
+                   return (
+                     <tr key={admin.id} className="border-b border-[#3A3F4D]/50 hover:bg-[#1C2128] transition-colors">
+                       <td className="py-4 px-5">
+                          <div className="flex items-center gap-3">
+                             <div className="w-8 h-8 rounded-full bg-[#1C2128] flex items-center justify-center font-bold text-white uppercase border border-[#3A3F4D]">
+                               {admin.name.charAt(0)}
+                             </div>
+                             <div>
+                               <p className="font-medium text-white">{admin.name}</p>
+                               <p className="text-xs text-gray-500">{admin.email}</p>
+                             </div>
+                          </div>
+                       </td>
+                       <td className="py-4 px-5">
+                          <div className="flex flex-col items-start gap-1">
+                             <span className={`px-2.5 py-1 rounded text-xs font-semibold tracking-wide border ${roleData.bg} ${roleData.color} ${roleData.border}`}>
+                               {roleData.title}
+                             </span>
+                             <span className="text-[11px] text-gray-500">{roleData.description}</span>
+                          </div>
+                       </td>
+                       <td className="py-4 px-5 text-gray-400">{admin.addedAt}</td>
+                       <td className="py-4 px-5 text-right">
+                         <button 
+                           onClick={() => handleDelete(admin.id, admin.name)} 
+                           className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                         >
+                           <Trash2 size={16} />
+                         </button>
+                       </td>
+                     </tr>
+                   );
+                 })
+               )}
+               {!loading && filteredAdmins.length === 0 && (
+                 <tr>
+                   <td colSpan={4} className="py-12 text-center text-gray-500 font-sans">
                      No administrators found matching your search.
                    </td>
                  </tr>

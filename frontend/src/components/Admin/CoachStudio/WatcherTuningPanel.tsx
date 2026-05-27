@@ -10,13 +10,13 @@ export const WatcherTuningPanel: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchWithAuth('/admin/coach-studio/watchers')
+    fetchWithAuth('/api/admin/coach-studio/watchers')
       .then(res => res.json())
       .then(d => setData(d));
   }, []);
 
   const handleSave = (agent_name: string, payload: any) => {
-    fetchWithAuth(`/admin/coach-studio/watchers/${agent_name}`, {
+    fetchWithAuth(`/api/admin/coach-studio/watchers/${agent_name}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

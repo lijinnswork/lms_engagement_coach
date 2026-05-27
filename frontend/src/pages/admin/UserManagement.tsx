@@ -38,13 +38,25 @@ export const UserManagement: React.FC = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [sortBy, setSortBy] = useState('');
+  const [page, setPage] = useState(1);
+
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [profileStats, setProfileStats] = useState<any>(null);
   
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editLmsUsername, setEditLmsUsername] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Add user states
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addEmail, setAddEmail] = useState('');
+  const [addRole, setAddRole] = useState('student');
+  const [addLmsUsername, setAddLmsUsername] = useState('');
+  const [isAddingUser, setIsAddingUser] = useState(false);
 
   // Delete states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -55,7 +67,15 @@ export const UserManagement: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetchWithAuth('/api/admin/users');
+      const query = new URLSearchParams({
+        page: page.toString(),
+        search: search,
+        status: statusFilter,
+        role: roleFilter,
+        sort_by: sortBy
+      }).toString();
+
+      const response = await fetchWithAuth(`/api/admin/users?${query}`);
       if (!response.ok) {
         throw new Error(`Failed to load users: ${response.statusText}`);
       }
@@ -104,8 +124,16 @@ export const UserManagement: React.FC = () => {
   };
 
   useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      loadUsers();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [search]);
+
+  useEffect(() => {
     loadUsers();
-  }, []);
+  }, [roleFilter, statusFilter, sortBy, page]);
 
   // Update user username/name logic
   const handleSaveChanges = async () => {
@@ -140,6 +168,38 @@ export const UserManagement: React.FC = () => {
       alert(err.message || 'Failed to update user changes.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Add new user
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsAddingUser(true);
+      const res = await fetchWithAuth('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: addName,
+          email: addEmail,
+          role: addRole,
+          lms_username: addLmsUsername
+        })
+      });
+      if (res.ok) {
+        setIsAddModalOpen(false);
+        setAddName('');
+        setAddEmail('');
+        setAddRole('student');
+        setAddLmsUsername('');
+        await loadUsers();
+      } else {
+        throw new Error('Failed to create user');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error creating user');
+    } finally {
+      setIsAddingUser(false);
     }
   };
 
@@ -194,15 +254,27 @@ export const UserManagement: React.FC = () => {
   };
 
   // Open profile view panel
-  const handleSelectUser = (targetUser: UserData) => {
+  const handleSelectUser = async (targetUser: UserData) => {
     setSelectedUser(targetUser);
     setEditName(targetUser.name);
     setEditLmsUsername(targetUser.lms_username);
     setIsEditing(false);
     setShowDeleteConfirm(false);
+    setProfileStats(null);
+
+    // Fetch profile metrics
+    try {
+      const res = await fetchWithAuth(`/api/admin/users/${targetUser.id}/profile`);
+      if (res.ok) {
+        const d = await res.json();
+        setProfileStats(d);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  // Filtering logic
+  // Filtering & local sorting fallback
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(search.toLowerCase()) || 
                           u.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -220,12 +292,22 @@ export const UserManagement: React.FC = () => {
     }
   };
 
+  const handleHeaderClick = (column: string) => {
+    setSortBy(column);
+  };
+
   return (
     <div className="max-w-7xl mx-auto h-full flex flex-col pt-4">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-semibold text-white font-serif">User Management</h1>
+        <button 
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#7B9EA8] text-[#0D1117] hover:bg-[#A3BFC7] font-medium rounded-md transition-colors"
+        >
+          <Plus size={16} /> Add User
+        </button>
       </div>
 
       {/* Filters Toolbar */}
@@ -284,12 +366,12 @@ export const UserManagement: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-[#3A3F4D] text-sm text-gray-400 bg-[#1C2128]/50">
-                  <th className="py-3 px-4 font-medium">Name</th>
-                  <th className="py-3 px-4 font-medium">LMS Username</th>
-                  <th className="py-3 px-4 font-medium">Email</th>
-                  <th className="py-3 px-4 font-medium">Role</th>
-                  <th className="py-3 px-4 font-medium">Status</th>
-                  <th className="py-3 px-4 font-medium">Last Login</th>
+                  <th className="py-3 px-4 font-medium cursor-pointer hover:text-white" onClick={() => handleHeaderClick('name')}>Name</th>
+                  <th className="py-3 px-4 font-medium cursor-pointer hover:text-white" onClick={() => handleHeaderClick('lms_username')}>LMS Username</th>
+                  <th className="py-3 px-4 font-medium cursor-pointer hover:text-white" onClick={() => handleHeaderClick('email')}>Email</th>
+                  <th className="py-3 px-4 font-medium cursor-pointer hover:text-white" onClick={() => handleHeaderClick('role')}>Role</th>
+                  <th className="py-3 px-4 font-medium cursor-pointer hover:text-white" onClick={() => handleHeaderClick('status')}>Status</th>
+                  <th className="py-3 px-4 font-medium cursor-pointer hover:text-white" onClick={() => handleHeaderClick('last_login')}>Last Login</th>
                   <th className="py-3 px-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
@@ -325,8 +407,8 @@ export const UserManagement: React.FC = () => {
                 ))}
                 {filteredUsers.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-500">
-                      No users matching your criteria.
+                    <td colSpan={7} className="py-12 text-center text-gray-500 font-sans">
+                      No users registered yet.
                     </td>
                   </tr>
                 )}
@@ -335,6 +417,64 @@ export const UserManagement: React.FC = () => {
           </div>
           <div className="py-3 px-4 border-t border-[#3A3F4D] text-sm text-gray-400 flex justify-between items-center bg-[#1C2128]/50">
              <span>Showing {filteredUsers.length} users</span>
+             <div className="flex gap-2 text-xs">
+               <button 
+                 onClick={() => setPage(p => Math.max(p - 1, 1))} 
+                 disabled={page === 1}
+                 className="px-2.5 py-1 border border-[#3A3F4D] rounded bg-[#242834] text-white disabled:opacity-40"
+               >
+                 Prev
+               </button>
+               <span className="py-1">Page {page}</span>
+               <button 
+                 onClick={() => setPage(p => p + 1)} 
+                 className="px-2.5 py-1 border border-[#3A3F4D] rounded bg-[#242834] text-white"
+               >
+                 Next
+               </button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)} />
+          <div className="bg-[#0D1117] border border-[#1C2128] rounded-xl w-full max-w-md relative z-50 p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-white font-serif">Add New User</h2>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-white"><X size={20}/></button>
+            </div>
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Full Name</label>
+                <input required type="text" value={addName} onChange={e => setAddName(e.target.value)} className="w-full bg-[#1C2128] border border-[#3A3F4D] rounded px-3 py-2 text-white text-sm outline-none focus:border-[#7B9EA8]" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Email Address</label>
+                <input required type="email" value={addEmail} onChange={e => setAddEmail(e.target.value)} className="w-full bg-[#1C2128] border border-[#3A3F4D] rounded px-3 py-2 text-white text-sm outline-none focus:border-[#7B9EA8]" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">LMS Username</label>
+                <input type="text" value={addLmsUsername} onChange={e => setAddLmsUsername(e.target.value)} className="w-full bg-[#1C2128] border border-[#3A3F4D] rounded px-3 py-2 text-white text-sm outline-none focus:border-[#7B9EA8] font-mono" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Assign Role</label>
+                <select value={addRole} onChange={e => setAddRole(e.target.value)} className="w-full bg-[#1C2128] border border-[#3A3F4D] rounded px-3 py-2 text-white text-sm outline-none focus:border-[#7B9EA8]">
+                  <option value="student">student</option>
+                  <option value="support_staff">support_staff</option>
+                  <option value="super_admin">super_admin</option>
+                </select>
+              </div>
+              <div className="pt-4 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white" disabled={isAddingUser}>Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-[#7B9EA8] text-[#0D1117] rounded text-sm font-semibold hover:bg-[#A3BFC7] flex items-center gap-1" disabled={isAddingUser}>
+                  {isAddingUser && <Loader2 size={14} className="animate-spin" />}
+                  Create User
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -448,6 +588,31 @@ export const UserManagement: React.FC = () => {
                       </div>
                     </div>
                   )}
+                </div>
+
+                <hr className="border-[#1C2128]" />
+
+                {/* Profile Stats Metrics */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Learning Analytics</h4>
+                  <div className="grid grid-cols-2 gap-3 text-xs bg-[#1C2128] p-4 rounded-xl border border-[#3A3F4D]/50 text-gray-300">
+                    <div>
+                      <span className="text-gray-500 block">Enrolled Courses</span>
+                      <span className="text-sm font-semibold text-white">{profileStats?.enrolled_courses_count ?? 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block">Avg Progress</span>
+                      <span className="text-sm font-semibold text-white">{profileStats?.avg_progress ?? '0%'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block">Active Days</span>
+                      <span className="text-sm font-semibold text-white">{profileStats?.active_days_count ?? 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block">Coach Messages</span>
+                      <span className="text-sm font-semibold text-white">{profileStats?.coach_message_count ?? 0}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <hr className="border-[#1C2128]" />

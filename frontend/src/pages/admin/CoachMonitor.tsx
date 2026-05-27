@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { 
   MessageSquare, 
@@ -18,32 +18,9 @@ interface SampleMessage {
   reception: 'replied' | 'dismissed' | 'ignored';
 }
 
-const MOCK_MESSAGES: SampleMessage[] = [
-  {
-    id: 'm1',
-    text: "I noticed you came back to [topic] three times this week. Something about it is clicking — how does it feel now?",
-    type: "reflection_prompt",
-    agent: "curiosity_watcher",
-    reception: 'replied'
-  },
-  {
-    id: 'm2',
-    text: "Hey — I haven't seen you in a few days. No pressure, just wanted to say hi.",
-    type: "check_in",
-    agent: "engagement_watcher",
-    reception: 'dismissed'
-  },
-  {
-    id: 'm3',
-    text: "You've been making steady progress on [course]! Take a moment to celebrate.",
-    type: "celebration",
-    agent: "momentum_watcher",
-    reception: 'ignored'
-  }
-];
-
 export const CoachMonitor: React.FC = () => {
   const [period, setPeriod] = useState('30d');
+  const [loading, setLoading] = useState(true);
   
   const [stats, setStats] = useState({
     messages_sent: 0,
@@ -52,9 +29,8 @@ export const CoachMonitor: React.FC = () => {
     positive_reception_rate: 0
   });
 
-  const [triggerData, setTriggerData] = useState([
-    { value: 0, name: 'Engagement', itemStyle: { color: '#7B9EA8' } }
-  ]);
+  const [triggerData, setTriggerData] = useState<any[]>([]);
+  const [chartsData, setChartsData] = useState<any>(null);
   
   const [safety, setSafety] = useState({
     blocked_messages: 0,
@@ -64,36 +40,57 @@ export const CoachMonitor: React.FC = () => {
     auto_truncated: 0
   });
 
-  const [samples, setSamples] = useState<SampleMessage[]>(MOCK_MESSAGES);
+  const [samples, setSamples] = useState<SampleMessage[]>([]);
 
-  React.useEffect(() => {
-    fetchWithAuth('/api/admin/coach/stats').then(r => r.json()).then(data => {
-      if (data.messages_sent !== undefined) setStats(data);
-    }).catch(console.error);
-
-    fetchWithAuth('/api/admin/coach/charts').then(r => r.json()).then(data => {
-      if (data.trigger_distribution && data.trigger_distribution.length > 0) {
-        // Map colors to agents
-        const colors: Record<string, string> = {
-          'engagement': '#7B9EA8', 'motivation': '#E8A87C', 
-          'momentum': '#B4C7B8', 'curiosity': '#D4C5B9', 'goal': '#A391E8'
-        };
-        const mapped = data.trigger_distribution.map((item: any) => ({
-          ...item,
-          itemStyle: { color: colors[item.name] || '#8A8898' }
-        }));
-        setTriggerData(mapped);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const statsRes = await fetchWithAuth(`/api/admin/coach/stats?period=${period}`);
+      if (statsRes.ok) {
+        const d = await statsRes.json();
+        setStats(d);
       }
-    }).catch(console.error);
 
-    fetchWithAuth('/api/admin/coach/safety-report').then(r => r.json()).then(data => {
-      if (data.total_passed !== undefined) setSafety(data);
-    }).catch(console.error);
+      const chartsRes = await fetchWithAuth(`/api/admin/coach/charts?period=${period}`);
+      if (chartsRes.ok) {
+        const d = await chartsRes.json();
+        setChartsData(d);
+        if (d.trigger_distribution && d.trigger_distribution.length > 0) {
+          const colors: Record<string, string> = {
+            'engagement': '#7B9EA8', 'motivation': '#E8A87C', 
+            'momentum': '#B4C7B8', 'curiosity': '#D4C5B9', 'goal': '#A391E8'
+          };
+          const mapped = d.trigger_distribution.map((item: any) => ({
+            ...item,
+            itemStyle: { color: colors[item.name] || '#8A8898' }
+          }));
+          setTriggerData(mapped);
+        } else {
+          setTriggerData([]);
+        }
+      }
 
-    fetchWithAuth('/api/admin/coach/samples').then(r => r.json()).then(data => {
-      if (Array.isArray(data) && data.length > 0) setSamples(data);
-    }).catch(console.error);
-  }, []);
+      const safetyRes = await fetchWithAuth(`/api/admin/coach/safety-report?period=${period}`);
+      if (safetyRes.ok) {
+        const d = await safetyRes.json();
+        setSafety(d);
+      }
+
+      const samplesRes = await fetchWithAuth('/api/admin/coach/samples?count=10');
+      if (samplesRes.ok) {
+        const d = await samplesRes.json();
+        setSamples(d);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [period]);
 
   const messageTypeOptions = {
     backgroundColor: 'transparent',
@@ -109,7 +106,7 @@ export const CoachMonitor: React.FC = () => {
       {
         name: 'Messages',
         type: 'bar',
-        data: [5, 8, 22, 35],
+        data: chartsData?.message_types ?? [0, 0, 0, 0],
         itemStyle: { color: '#7B9EA8', borderRadius: [0, 4, 4, 0] }
       }
     ],
@@ -129,7 +126,7 @@ export const CoachMonitor: React.FC = () => {
       splitLine: { lineStyle: { color: '#1C2128' } }
     },
     series: [{
-      data: [72, 75, 71, 78, 80, 85, 82],
+      data: chartsData?.response_rate ?? [0, 0, 0, 0, 0, 0, 0],
       type: 'line',
       smooth: true,
       lineStyle: { color: '#B4C7B8', width: 3 },
@@ -147,9 +144,47 @@ export const CoachMonitor: React.FC = () => {
       radius: ['45%', '75%'],
       itemStyle: { borderRadius: 8, borderColor: '#242834', borderWidth: 2 },
       label: { show: false, position: 'center' },
-      data: triggerData
+      data: triggerData.length > 0 ? triggerData : [{ value: 0, name: 'No Triggers' }]
     }]
   };
+
+  const renderChart = (title: string, option: any, isEmpty: boolean) => {
+    return (
+      <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5 relative">
+        <h3 className="text-white font-medium mb-4">{title}</h3>
+        <div className="relative">
+          {isEmpty && (
+            <div className="absolute inset-0 bg-[#242834]/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-md z-10">
+              <span className="text-sm text-gray-400 font-sans">No data yet</span>
+            </div>
+          )}
+          <ReactECharts option={option} style={{ height: '180px' }} />
+        </div>
+      </div>
+    );
+  };
+
+  if (!loading && stats.messages_sent === 0) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6 pb-20 pt-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-semibold text-white font-serif">Coach Monitor</h1>
+        </div>
+        <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-10 text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-[#1C2128] flex items-center justify-center text-gray-400 mx-auto border border-[#3A3F4D]">
+             <MessageSquare size={24} />
+          </div>
+          <h3 className="text-white font-medium text-lg font-serif">Coach Monitor</h3>
+          <p className="text-sm text-gray-400 max-w-md mx-auto">
+            The coach hasn't sent any messages yet. Data will appear here once the coach begins interacting with students.
+          </p>
+          <p className="text-xs text-gray-500 italic">
+            Make sure the Agent scheduler is running in Agent Controls.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20 pt-4">
@@ -213,14 +248,8 @@ export const CoachMonitor: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
-                <h3 className="text-white font-medium mb-4 text-sm">Response Rate Over Time</h3>
-                <ReactECharts option={responseRateOptions} style={{ height: '180px' }} />
-              </div>
-              <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
-                <h3 className="text-white font-medium mb-4 text-sm">Trigger Distribution</h3>
-                <ReactECharts option={triggerOptions} style={{ height: '180px' }} />
-              </div>
+              {renderChart("Response Rate Over Time", responseRateOptions, !chartsData?.response_rate)}
+              {renderChart("Trigger Distribution", triggerOptions, triggerData.length === 0)}
             </div>
 
             {/* Safety Report */}
@@ -266,27 +295,27 @@ export const CoachMonitor: React.FC = () => {
             
             <div className="flex-1 space-y-4">
                {samples.map(msg => (
-                 <div key={msg.id} className="bg-[#1C2128] border border-[#3A3F4D] p-4 rounded-lg">
-                    <p className="text-gray-200 text-sm italic mb-4">"{msg.text}"</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
-                       <p><span className="text-gray-500">Type:</span> <span className="text-gray-300">{msg.type}</span></p>
-                       <p><span className="text-gray-500">Agent:</span> <span className="text-[#7B9EA8]">{msg.agent}</span></p>
-                       <p className="flex items-center gap-1">
-                         <span className="text-gray-500">Reception:</span> 
-                         <span className={
-                           msg.reception === 'replied' ? 'text-green-400' : 
-                           msg.reception === 'dismissed' ? 'text-[#C9544D]' : 'text-gray-400'
-                         }>
-                           {msg.reception} {msg.reception === 'replied' && '✓'}
-                         </span>
-                       </p>
-                    </div>
-                 </div>
+                  <div key={msg.id} className="bg-[#1C2128] border border-[#3A3F4D] p-4 rounded-lg">
+                     <p className="text-gray-200 text-sm italic mb-4">"{msg.text}"</p>
+                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+                        <p><span className="text-gray-500">Type:</span> <span className="text-gray-300">{msg.type}</span></p>
+                        <p><span className="text-gray-500">Agent:</span> <span className="text-[#7B9EA8]">{msg.agent}</span></p>
+                        <p className="flex items-center gap-1">
+                          <span className="text-gray-500">Reception:</span> 
+                          <span className={
+                            msg.reception === 'replied' ? 'text-green-400' : 
+                            msg.reception === 'dismissed' ? 'text-[#C9544D]' : 'text-gray-400'
+                          }>
+                            {msg.reception} {msg.reception === 'replied' && '✓'}
+                          </span>
+                        </p>
+                     </div>
+                  </div>
                ))}
                
-               <button onClick={() => alert("Loaded more samples.")} className="w-full py-2 border border-[#3A3F4D] text-sm text-gray-300 hover:text-white rounded hover:bg-[#1C2128] transition-colors">
-                 Load more samples...
-               </button>
+               {samples.length === 0 && (
+                 <p className="text-sm text-gray-500 italic">No message samples available yet.</p>
+               )}
             </div>
          </div>
       </div>

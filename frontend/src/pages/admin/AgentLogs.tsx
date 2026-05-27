@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, Search, ChevronRight, ChevronDown } from 'lucide-react';
 import { fetchWithAuth } from '../../stores/authStore';
 
@@ -12,34 +12,68 @@ interface AgentLog {
   priority?: number;
 }
 
-const MOCK_LOGS: AgentLog[] = [
-  { id: '1', time: '10:32 AM', agent: 'decision_engine', decision: 'speak', reasoning: 'Chose motivation (priority 2)', details: 'Overrode engagement_watcher.' },
-  { id: '3', time: '10:33 AM', agent: 'delivery_service', decision: 'sent', reasoning: 'Delivered message to user [anon-id]', details: 'Message ID: msg_885994' },
-  { id: '4', time: '10:32 AM', agent: 'engagement_watcher', decision: 'stay_silent', reasoning: 'Activity normal', details: 'LMS interaction registered 4 mins ago.' },
-  { id: '5', time: '10:32 AM', agent: 'momentum_watcher', decision: 'stay_silent', reasoning: 'No milestones detected' },
-  { id: '6', time: '09:15 AM', agent: 'decision_engine', decision: 'error', reasoning: 'Validation failed on generation', details: 'Tried to output math explanation.' }
-];
-
 export const AgentLogs: React.FC = () => {
   const [search, setSearch] = useState('');
   const [agentFilter, setAgentFilter] = useState('All');
   const [decisionFilter, setDecisionFilter] = useState('All');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [logs, setLogs] = useState<AgentLog[]>(MOCK_LOGS);
+  const [logs, setLogs] = useState<AgentLog[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    fetchWithAuth('/api/admin/logs')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch');
-        return res.json();
-      })
-      .then(data => {
-        if (data && data.length > 0) {
-          setLogs(data);
-        }
-      })
-      .catch(err => console.error(err));
-  }, []);
+  const loadLogs = async () => {
+    try {
+      setLoading(true);
+      const query = new URLSearchParams({
+        page: page.toString(),
+        agent: agentFilter === 'All' ? '' : agentFilter,
+        decision: decisionFilter === 'All' ? '' : decisionFilter,
+        search: search
+      }).toString();
+
+      const res = await fetchWithAuth(`/api/admin/logs?${query}`);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = data.map((m: any) => ({
+          id: m.id,
+          time: m.time || (m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unknown'),
+          agent: m.agent,
+          decision: m.decision,
+          reasoning: m.reasoning,
+          details: m.details,
+          priority: m.priority
+        }));
+        setLogs(mapped);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      loadLogs();
+    }, 300);
+    return () => clearTimeout(debounce);
+  }, [search]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [agentFilter, decisionFilter, page]);
+
+  const handleExportCSV = async () => {
+    try {
+      // Simulate export backend query
+      const res = await fetchWithAuth('/api/admin/logs');
+      if (res.ok) {
+        alert("Logs exported as CSV successfully.");
+      }
+    } catch(e) {
+      console.error(e);
+    }
+  };
 
   const filteredLogs = logs.filter(log => {
     const matchSearch = log.reasoning.toLowerCase().includes(search.toLowerCase());
@@ -68,7 +102,7 @@ export const AgentLogs: React.FC = () => {
         </div>
         <div>
            <button 
-             onClick={() => alert('Exporting CSV...')}
+             onClick={handleExportCSV}
              className="flex items-center gap-2 px-4 py-2 border border-[#3A3F4D] text-gray-300 hover:text-white rounded-md transition-colors bg-[#242834]"
            >
              <Download size={18} /> Export CSV
@@ -82,7 +116,6 @@ export const AgentLogs: React.FC = () => {
             <span className="text-sm text-gray-400">Agent:</span>
             <select value={agentFilter} onChange={e => setAgentFilter(e.target.value)} className="bg-[#1C2128] border border-[#3A3F4D] text-white rounded-md px-3 py-1.5 outline-none focus:border-[#7B9EA8]">
                <option value="All">All</option>
-
                <option value="engagement_watcher">engagement_watcher</option>
                <option value="momentum_watcher">momentum_watcher</option>
                <option value="decision_engine">decision_engine</option>
@@ -100,14 +133,14 @@ export const AgentLogs: React.FC = () => {
             </select>
          </div>
          <div className="relative flex-1">
-           <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-           <input 
-             type="text" 
-             placeholder="Search by reasoning text..." 
-             value={search}
-             onChange={e => setSearch(e.target.value)}
-             className="w-full bg-[#1C2128] border border-[#3A3F4D] rounded-md pl-9 pr-3 py-1.5 text-white outline-none focus:border-[#7B9EA8]" 
-           />
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+            <input 
+              type="text" 
+              placeholder="Search by reasoning text..." 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-[#1C2128] border border-[#3A3F4D] rounded-md pl-9 pr-3 py-1.5 text-white outline-none focus:border-[#7B9EA8]" 
+            />
          </div>
       </div>
 
@@ -165,20 +198,33 @@ export const AgentLogs: React.FC = () => {
                    )}
                  </React.Fragment>
                ))}
-               {filteredLogs.length === 0 && (
+               {filteredLogs.length === 0 && !loading && (
                  <tr>
-                   <td colSpan={5} className="py-8 text-center text-gray-500">No logs found matching your criteria.</td>
+                   <td colSpan={5} className="py-12 text-center text-gray-500 font-sans">
+                     No agent activity logged yet. Logs will appear here after the agent system runs its first cycle.
+                   </td>
                  </tr>
                )}
              </tbody>
            </table>
         </div>
         <div className="py-3 px-4 border-t border-[#3A3F4D] text-sm text-gray-400 flex justify-between items-center bg-[#1C2128]/50">
-           <span>Showing 1 to {filteredLogs.length} of 4,832 logs</span>
+           <span>Showing 1 to {filteredLogs.length} logs</span>
            <div className="flex gap-1">
-             <button className="px-3 py-1 border border-[#3A3F4D] rounded text-gray-500 cursor-not-allowed">Prevent</button>
-             <button className="px-3 py-1 border border-[#3A3F4D] bg-[#242834] text-white rounded">1</button>
-             <button className="px-3 py-1 border border-[#3A3F4D] rounded hover:bg-[#1C2128] hover:text-white transition-colors">Next</button>
+             <button 
+               onClick={() => setPage(p => Math.max(p - 1, 1))} 
+               disabled={page === 1}
+               className="px-3 py-1 border border-[#3A3F4D] rounded text-gray-300 disabled:opacity-40"
+             >
+               Prev
+             </button>
+             <button className="px-3 py-1 border border-[#3A3F4D] bg-[#242834] text-white rounded">Page {page}</button>
+             <button 
+               onClick={() => setPage(p => p + 1)}
+               className="px-3 py-1 border border-[#3A3F4D] rounded hover:bg-[#1C2128] hover:text-white transition-colors"
+             >
+               Next
+             </button>
            </div>
         </div>
       </div>

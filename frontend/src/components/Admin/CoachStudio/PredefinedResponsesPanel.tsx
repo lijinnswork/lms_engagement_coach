@@ -6,7 +6,7 @@ export const PredefinedResponsesPanel: React.FC = () => {
   const [responses, setResponses] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchWithAuth('/admin/coach-studio/responses')
+    fetchWithAuth('/api/admin/coach-studio/responses')
       .then(res => res.json())
       .then(d => setResponses(d));
   }, []);
@@ -17,7 +17,7 @@ export const PredefinedResponsesPanel: React.FC = () => {
 
   const saveRow = (index: number) => {
     const row = responses[index];
-    const url = row.id ? `/admin/coach-studio/responses/${row.id}` : '/admin/coach-studio/responses';
+    const url = row.id ? `/api/admin/coach-studio/responses/${row.id}` : '/api/admin/coach-studio/responses';
     const method = row.id ? 'PATCH' : 'POST';
     
     fetchWithAuth(url, {
@@ -32,7 +32,7 @@ export const PredefinedResponsesPanel: React.FC = () => {
       setResponses(responses.filter((_, i) => i !== index));
       return;
     }
-    fetchWithAuth(`/admin/coach-studio/responses/${id}`, { method: 'DELETE' })
+    fetchWithAuth(`/api/admin/coach-studio/responses/${id}`, { method: 'DELETE' })
       .then(() => window.location.reload());
   };
 

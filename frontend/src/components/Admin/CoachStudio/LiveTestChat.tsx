@@ -20,7 +20,7 @@ export const LiveTestChat: React.FC = () => {
     setDebugInfo(null);
 
     try {
-      const res = await fetchWithAuth('/admin/coach-studio/test-chat', {
+      const res = await fetchWithAuth('/api/admin/coach-studio/test-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

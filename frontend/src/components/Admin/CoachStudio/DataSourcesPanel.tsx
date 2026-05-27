@@ -12,13 +12,13 @@ export const DataSourcesPanel: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchWithAuth('/admin/coach-studio/data-sources')
+    fetchWithAuth('/api/admin/coach-studio/data-sources')
       .then(res => res.json())
       .then(d => setData(d));
   }, []);
 
   const handleSave = () => {
-    fetchWithAuth('/admin/coach-studio/data-sources', {
+    fetchWithAuth('/api/admin/coach-studio/data-sources', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -26,7 +26,7 @@ export const DataSourcesPanel: React.FC = () => {
   };
 
   const handleSync = () => {
-    fetchWithAuth('/admin/coach-studio/data-sources/sync', { method: 'POST' })
+    fetchWithAuth('/api/admin/coach-studio/data-sources/sync', { method: 'POST' })
       .then(() => alert('Sync triggered successfully.'));
   };
 

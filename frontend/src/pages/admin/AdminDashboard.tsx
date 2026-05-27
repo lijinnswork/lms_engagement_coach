@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { 
   Users, 
@@ -8,6 +8,7 @@ import {
   TrendingDown,
   Minus
 } from 'lucide-react';
+import { fetchWithAuth } from '../../stores/authStore';
 
 interface Stat {
   label: string;
@@ -19,21 +20,85 @@ interface Stat {
 
 export const AdminDashboard: React.FC = () => {
   const [period, setPeriod] = useState('30d');
-  
-  // Simulated data for demo (ordinarily from /api/admin/dashboard/stats)
+  const [statsData, setStatsData] = useState<any>(null);
+  const [chartsData, setChartsData] = useState<any>(null);
+  const [activityFeed, setActivityFeed] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      const statsRes = await fetchWithAuth(`/api/admin/dashboard/stats?period=${period}`);
+      if (statsRes.ok) {
+        const d = await statsRes.json();
+        setStatsData(d);
+      }
+
+      const chartsRes = await fetchWithAuth(`/api/admin/dashboard/charts?period=${period}`);
+      if (chartsRes.ok) {
+        const d = await chartsRes.json();
+        setChartsData(d);
+      }
+
+      const feedRes = await fetchWithAuth('/api/admin/dashboard/activity-feed');
+      if (feedRes.ok) {
+        const d = await feedRes.json();
+        setActivityFeed(d);
+      }
+    } catch (e) {
+      console.error("Error fetching dashboard details", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [period]);
+
   const stats: Stat[] = [
-    { label: 'Total Users', value: 247, trend: 'up', trendValue: '12', icon: <Users size={18} /> },
-    { label: 'Active This Week', value: 189, trend: 'down', trendValue: '5', icon: <Activity size={18} /> },
-    { label: 'Goal Completion', value: '72%', trend: 'up', trendValue: '4%', icon: <Target size={18} /> },
-    { label: 'Avg Engagement Score', value: '8.4/10', trend: 'up', trendValue: '+0.2', icon: <Activity size={18} /> },
+    { 
+      label: 'Total Users', 
+      value: statsData?.total_users ?? 0, 
+      trend: statsData?.total_users_trend ?? 'stable', 
+      trendValue: statsData?.total_users_change ?? '0', 
+      icon: <Users size={18} /> 
+    },
+    { 
+      label: 'Active This Week', 
+      value: statsData?.active_this_week ?? 0, 
+      trend: statsData?.active_this_week_trend ?? 'stable', 
+      trendValue: statsData?.active_this_week_change ?? '0', 
+      icon: <Activity size={18} /> 
+    },
+    { 
+      label: 'Goal Completion', 
+      value: statsData?.goal_completion_rate ?? '—', 
+      trend: statsData?.goal_completion_trend ?? 'stable', 
+      trendValue: statsData?.goal_completion_change ?? '0%', 
+      icon: <Target size={18} /> 
+    },
+    { 
+      label: 'Avg Progress', 
+      value: statsData?.avg_progress ?? (statsData?.avg_mood ? `${statsData.avg_mood}/10` : '—'), 
+      trend: statsData?.avg_progress_trend ?? 'stable', 
+      trendValue: statsData?.avg_progress_change ?? '0', 
+      icon: <Activity size={18} /> 
+    },
   ];
+
+  const hasEngagementData = chartsData && chartsData.engagement_over_time && chartsData.engagement_over_time.series && chartsData.engagement_over_time.series.length > 0;
+  const hasCourseData = chartsData && chartsData.course_status && chartsData.course_status.length > 0;
+  const hasGoalData = chartsData && chartsData.goal_completion && chartsData.goal_completion.completed && chartsData.goal_completion.completed.length > 0;
+  const hasCoachData = chartsData && chartsData.coach_activity && chartsData.coach_activity.series && chartsData.coach_activity.series.length > 0;
 
   const engagementOptions = {
     backgroundColor: 'transparent',
     tooltip: { trigger: 'axis' },
     xAxis: { 
       type: 'category', 
-      data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      data: hasEngagementData ? chartsData.engagement_over_time.labels : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       axisLine: { lineStyle: { color: '#3A3F4D' } }
     },
     yAxis: { 
@@ -41,7 +106,7 @@ export const AdminDashboard: React.FC = () => {
       splitLine: { lineStyle: { color: '#1C2128' } }
     },
     series: [{
-      data: [120, 132, 101, 134, 190, 230, 210],
+      data: hasEngagementData ? chartsData.engagement_over_time.series : [0, 0, 0, 0, 0, 0, 0],
       type: 'line',
       smooth: true,
       lineStyle: { color: '#7B9EA8', width: 3 },
@@ -66,11 +131,11 @@ export const AdminDashboard: React.FC = () => {
       avoidLabelOverlap: false,
       itemStyle: { borderRadius: 10, borderColor: '#242834', borderWidth: 2 },
       label: { show: false, position: 'center' },
-      data: [
-        { value: 1048, name: 'Active', itemStyle: { color: '#B4C7B8' } },
-        { value: 735, name: 'Completed', itemStyle: { color: '#7B9EA8' } },
-        { value: 580, name: 'Inactive', itemStyle: { color: '#D4C5B9' } },
-        { value: 300, name: 'At Risk', itemStyle: { color: '#C9544D' } }
+      data: hasCourseData ? chartsData.course_status : [
+        { value: 0, name: 'Active', itemStyle: { color: '#B4C7B8' } },
+        { value: 0, name: 'Completed', itemStyle: { color: '#7B9EA8' } },
+        { value: 0, name: 'Inactive', itemStyle: { color: '#D4C5B9' } },
+        { value: 0, name: 'At Risk', itemStyle: { color: '#C9544D' } }
       ]
     }]
   };
@@ -80,23 +145,82 @@ export const AdminDashboard: React.FC = () => {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { textStyle: { color: '#8A8898' } },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { type: 'category', data: ['W1', 'W2', 'W3', 'W4'], axisLine: { lineStyle: { color: '#3A3F4D' } } },
+    xAxis: { 
+      type: 'category', 
+      data: hasGoalData ? chartsData.goal_completion.labels : ['W1', 'W2', 'W3', 'W4'], 
+      axisLine: { lineStyle: { color: '#3A3F4D' } } 
+    },
     yAxis: { type: 'value', splitLine: { lineStyle: { color: '#1C2128' }} },
     series: [
-      { name: 'Completed', type: 'bar', stack: 'total', itemStyle: { color: '#B4C7B8' }, data: [120, 132, 101, 134] },
-      { name: 'Active', type: 'bar', stack: 'total', itemStyle: { color: '#7B9EA8' }, data: [220, 182, 191, 234] },
-      { name: 'Abandoned', type: 'bar', stack: 'total', itemStyle: { color: '#3A3F4D' }, data: [150, 232, 201, 154] }
+      { 
+        name: 'Completed', 
+        type: 'bar', 
+        stack: 'total', 
+        itemStyle: { color: '#B4C7B8' }, 
+        data: hasGoalData ? chartsData.goal_completion.completed : [0, 0, 0, 0] 
+      },
+      { 
+        name: 'Active', 
+        type: 'bar', 
+        stack: 'total', 
+        itemStyle: { color: '#7B9EA8' }, 
+        data: hasGoalData ? chartsData.goal_completion.active : [0, 0, 0, 0] 
+      },
+      { 
+        name: 'Abandoned', 
+        type: 'bar', 
+        stack: 'total', 
+        itemStyle: { color: '#3A3F4D' }, 
+        data: hasGoalData ? chartsData.goal_completion.abandoned : [0, 0, 0, 0] 
+      }
     ],
     textStyle: { color: '#8A8898' }
   };
 
-  const activityFeed = [
-    "14 students completed a module today",
-    "15 course progress updates in the last hour",
-    "Coach sent 12 proactive messages today",
-    "10 students completed a course today",
-    "3 new goals created today"
-  ];
+  const coachActivityOptions = {
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'axis' },
+    xAxis: { 
+      type: 'category', 
+      data: hasCoachData ? chartsData.coach_activity.labels : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      axisLine: { lineStyle: { color: '#3A3F4D' } }
+    },
+    yAxis: { 
+      type: 'value',
+      splitLine: { lineStyle: { color: '#1C2128' } }
+    },
+    series: [{
+      data: hasCoachData ? chartsData.coach_activity.series : [0, 0, 0, 0, 0, 0, 0],
+      type: 'line',
+      smooth: true,
+      lineStyle: { color: '#B4C7B8', width: 3 },
+      itemStyle: { color: '#B4C7B8' },
+      areaStyle: {
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [{ offset: 0, color: '#B4C7B855' }, { offset: 1, color: '#B4C7B800' }]
+        }
+      }
+    }],
+    textStyle: { color: '#8A8898' }
+  };
+
+  const renderChart = (title: string, option: any, isEmpty: boolean) => {
+    return (
+      <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5 relative">
+        <h3 className="text-white font-medium mb-4">{title}</h3>
+        <div className="relative">
+          {isEmpty && (
+            <div className="absolute inset-0 bg-[#242834]/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-md z-10">
+              <span className="text-sm text-gray-400 font-sans">No data yet</span>
+              <span className="text-[10px] text-gray-500 mt-1 font-sans">Charts will populate as students enroll and use the platform</span>
+            </div>
+          )}
+          <ReactECharts option={option} style={{ height: '300px' }} />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20">
@@ -152,22 +276,10 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Main Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
-            <h3 className="text-white font-medium mb-4">Engagement Over Time</h3>
-            <ReactECharts option={engagementOptions} style={{ height: '300px' }} />
-         </div>
-         <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
-            <h3 className="text-white font-medium mb-4">Course Status Distribution</h3>
-            <ReactECharts option={courseOptions} style={{ height: '300px' }} />
-         </div>
-         <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
-            <h3 className="text-white font-medium mb-4">Goal Completion Rate</h3>
-            <ReactECharts option={goalOptions} style={{ height: '300px' }} />
-         </div>
-         <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
-            <h3 className="text-white font-medium mb-4">Coach Activity</h3>
-            <ReactECharts option={engagementOptions} style={{ height: '300px' }} />
-         </div>
+        {renderChart("Engagement Over Time", engagementOptions, !hasEngagementData)}
+        {renderChart("Course Status Distribution", courseOptions, !hasCourseData)}
+        {renderChart("Goal Completion Rate", goalOptions, !hasGoalData)}
+        {renderChart("Coach Activity", coachActivityOptions, !hasCoachData)}
       </div>
 
       {/* Alerts & Activity */}
@@ -179,8 +291,8 @@ export const AdminDashboard: React.FC = () => {
                  <span className="w-2 h-2 rounded-full bg-[#C9544D]"></span>
                  Engagement Alerts
               </h3>
-              <p className="text-white text-2xl font-mono mb-2">12 students inactive</p>
-              <p className="text-xs text-gray-400">↑ 2 more than last week (aggregate only)</p>
+              <p className="text-white text-2xl font-mono mb-2">{statsData?.inactive_count ?? 0} students inactive</p>
+              <p className="text-xs text-gray-400">↑ {statsData?.inactive_change ?? 0} more than last week (aggregate only)</p>
             </div>
             
             <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
@@ -206,6 +318,9 @@ export const AdminDashboard: React.FC = () => {
                     <p className="text-gray-300 text-sm leading-relaxed">{feed}</p>
                  </div>
                ))}
+               {activityFeed.length === 0 && (
+                 <p className="text-sm text-gray-500 italic mt-2 font-sans">No activity recorded yet. Data will appear as students use the platform.</p>
+               )}
             </div>
          </div>
       </div>

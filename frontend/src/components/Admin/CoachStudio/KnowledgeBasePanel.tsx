@@ -11,7 +11,7 @@ export const KnowledgeBasePanel: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchWithAuth('/admin/coach-studio/knowledge')
+    fetchWithAuth('/api/admin/coach-studio/knowledge')
       .then(res => res.json())
       .then(d => {
         if (Array.isArray(d)) setFaqs(d);
@@ -22,7 +22,7 @@ export const KnowledgeBasePanel: React.FC = () => {
   }, []);
 
   const fetchDocuments = () => {
-    fetchWithAuth('/admin/coach-studio/knowledge/documents')
+    fetchWithAuth('/api/admin/coach-studio/knowledge/documents')
       .then(res => res.json())
       .then(d => {
         if (Array.isArray(d)) setDocuments(d);
@@ -41,7 +41,7 @@ export const KnowledgeBasePanel: React.FC = () => {
 
   const saveAll = () => {
     setIsSaving(true);
-    fetchWithAuth('/admin/coach-studio/knowledge', {
+    fetchWithAuth('/api/admin/coach-studio/knowledge', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: faqs })
@@ -67,7 +67,7 @@ export const KnowledgeBasePanel: React.FC = () => {
     const formData = new FormData();
     formData.append('file', file);
 
-    fetchWithAuth('/admin/coach-studio/knowledge/upload', {
+    fetchWithAuth('/api/admin/coach-studio/knowledge/upload', {
       method: 'POST',
       body: formData
     })
@@ -81,7 +81,7 @@ export const KnowledgeBasePanel: React.FC = () => {
   };
 
   const deleteDocument = (id: string) => {
-    fetchWithAuth(`/admin/coach-studio/knowledge/documents/${id}`, {
+    fetchWithAuth(`/api/admin/coach-studio/knowledge/documents/${id}`, {
       method: 'DELETE'
     })
     .then(() => fetchDocuments());

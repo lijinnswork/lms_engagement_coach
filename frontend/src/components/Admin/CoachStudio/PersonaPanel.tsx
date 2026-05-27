@@ -12,14 +12,14 @@ export const PersonaPanel: React.FC = () => {
   const allTraits = ['Warm', 'Casual', 'Empathetic', 'Curious', 'Formal', 'Motivational', 'Direct', 'Humorous'];
 
   useEffect(() => {
-    fetchWithAuth('/admin/coach-studio/persona')
+    fetchWithAuth('/api/admin/coach-studio/persona')
       .then(res => res.json())
       .then(d => setData(d))
       .catch(console.error);
   }, []);
 
   const handleSave = () => {
-    fetchWithAuth('/admin/coach-studio/persona', {
+    fetchWithAuth('/api/admin/coach-studio/persona', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

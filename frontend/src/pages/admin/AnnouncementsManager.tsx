@@ -133,6 +133,13 @@ export const AnnouncementsManager = () => {
               </tr>
             </thead>
             <tbody className="text-sm text-gray-200">
+              {announcements.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-gray-500 font-sans">
+                    No announcements created yet. Click "Create Announcement" to post your first announcement.
+                  </td>
+                </tr>
+              )}
               {announcements.map((item: any) => {
                 const now = new Date();
                 const start = new Date(item.start_date);

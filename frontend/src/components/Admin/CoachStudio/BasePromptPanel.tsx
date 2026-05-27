@@ -6,19 +6,19 @@ export const BasePromptPanel: React.FC = () => {
   const [versions, setVersions] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchWithAuth('/admin/coach-studio/prompt')
+    fetchWithAuth('/api/admin/coach-studio/prompt')
       .then(res => res.json())
       .then(d => {
         setDraftPrompt(d.draft_prompt || '');
       });
       
-    fetchWithAuth('/admin/coach-studio/prompt/versions')
+    fetchWithAuth('/api/admin/coach-studio/prompt/versions')
       .then(res => res.json())
       .then(d => setVersions(d));
   }, []);
 
   const saveDraft = () => {
-    fetchWithAuth('/admin/coach-studio/prompt', {
+    fetchWithAuth('/api/admin/coach-studio/prompt', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt_text: draftPrompt })
@@ -27,7 +27,7 @@ export const BasePromptPanel: React.FC = () => {
 
   const publishToLive = () => {
     if(window.confirm('This will change how the coach speaks to all students. Have you tested this in the preview panel?')) {
-      fetchWithAuth('/admin/coach-studio/prompt/publish', {
+      fetchWithAuth('/api/admin/coach-studio/prompt/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt_text: draftPrompt })
