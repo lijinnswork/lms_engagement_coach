@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { fetchWithAuth } from '../../stores/authStore';
+import { useDashboardStore } from '../../store/dashboardStore';
 
 
 // Ensure the type matches what might come from the API or mock
@@ -28,8 +28,7 @@ const OTHERS_COLOR = '#8B92A5'; // Muted Gray
 
 export const StackedProgressBar = () => {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState<CourseProgressData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { courses: rawCourses, coursesLoading, fetchCourses } = useDashboardStore();
   
   // Animation state
   const [animatedProgress, setAnimatedProgress] = useState(0);
@@ -41,34 +40,27 @@ export const StackedProgressBar = () => {
   const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Attempt to fetch from real API, fallback to mock data
-    const fetchCourses = async () => {
-      try {
-        const res = await fetchWithAuth('/api/courses');
-        if (res.ok) {
-          const data = await res.json();
-          // Map backend data to our interface
-          const mapped = data.map((d: any) => ({
-            id: d.course_id || d.id,
-            name: d.course_name || d.name,
-            progress_percent: d.progress || 0,
-            total_items: d.total_items || 10,
-            items_completed: d.items_completed || 0,
-            enrollment_active: d.enrollment_active ?? true,
-          }));
-          setCourses(mapped);
-        } else {
-          throw new Error('Failed to fetch');
-        }
-      } catch (e) {
-        console.error("Failed to fetch courses", e);
-        setCourses([]);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchCourses();
-  }, []);
+  }, [fetchCourses]);
+
+  const courses = React.useMemo(() => {
+    if (!rawCourses) return [];
+    return rawCourses.map((d: any) => {
+      const progressObj = typeof d.progress === 'object' && d.progress !== null ? d.progress : {};
+      const progressPercent = progressObj.progress_percent ?? d.progress_percent ?? 0;
+      const completedItems = progressObj.completed_items ?? d.items_completed ?? 0;
+      const totalItems = progressObj.total_items ?? d.total_items ?? 10;
+      
+      return {
+        id: d.course_id || d.id,
+        name: d.course_name || d.name,
+        progress_percent: progressPercent,
+        total_items: totalItems,
+        items_completed: completedItems,
+        enrollment_active: d.enrollment_active ?? true,
+      };
+    });
+  }, [rawCourses]);
 
   // Process data
   const activeCourses = courses.filter(c => (c.enrollment_active !== false) && c.progress_percent < 100);
@@ -86,7 +78,7 @@ export const StackedProgressBar = () => {
   const overallProgress = totalActiveCount > 0 ? Math.round(sumProgress / totalActiveCount) : 0;
 
   useEffect(() => {
-    if (!loading) {
+    if (!coursesLoading && rawCourses) {
       setTimeout(() => setBarReady(true), 100);
       
       // Animate the overall percentage number
@@ -107,9 +99,9 @@ export const StackedProgressBar = () => {
       };
       requestAnimationFrame(animateNum);
     }
-  }, [loading, overallProgress]);
+  }, [coursesLoading, rawCourses, overallProgress]);
 
-  if (loading) {
+  if (coursesLoading && !rawCourses) {
     return (
       <div className="w-full flex justify-center items-center py-6">
         <div className="w-6 h-6 border-2 border-accent-sage border-t-transparent rounded-full animate-spin" />

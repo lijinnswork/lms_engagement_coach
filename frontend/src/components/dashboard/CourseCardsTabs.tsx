@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fetchWithAuth } from '../../stores/authStore';
+import { useDashboardStore } from '../../store/dashboardStore';
 
 const COLORS = [
   '#7B9EA8', // Sage Blue
@@ -17,45 +17,35 @@ const COLORS = [
 
 export const CourseCardsTabs = () => {
   const [activeTab, setActiveTab] = useState<'in_progress' | 'completed'>('in_progress');
-  const [courses, setCourses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { courses: rawCourses, coursesLoading, fetchCourses } = useDashboardStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const res = await fetchWithAuth('/api/courses');
-        if (res.ok) {
-          const data = await res.json();
-          const mapped = data.map((d: any, idx: number) => {
-            const progressObj = typeof d.progress === 'object' && d.progress !== null ? d.progress : {};
-            const progressPercent = progressObj.progress_percent ?? d.progress_percent ?? 0;
-            const completedItems = progressObj.completed_items ?? d.items_completed ?? 0;
-            const totalItems = progressObj.total_items ?? d.total_items ?? 10;
-            const lastActivity = progressObj.last_activity_at ?? d.last_activity_time ?? null;
-            const name = d.course_name || d.name || 'Untitled Course';
-
-            return {
-              id: d.course_id || d.id,
-              name: name,
-              modulesComplete: completedItems,
-              modulesTotal: totalItems,
-              progress: progressPercent,
-              color: COLORS[idx % COLORS.length],
-              iconType: idx % 3 === 0 ? 'code' : idx % 3 === 1 ? 'grid' : 'monitor',
-              completed_at: lastActivity ? `Completed on ${new Date(lastActivity).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}` : 'Completed'
-            };
-          });
-          setCourses(mapped);
-        }
-      } catch (e) {
-        console.error('Error fetching courses in Tabs:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchCourses();
-  }, []);
+  }, [fetchCourses]);
+
+  const courses = useMemo(() => {
+    if (!rawCourses) return [];
+    return rawCourses.map((d: any, idx: number) => {
+      const progressObj = typeof d.progress === 'object' && d.progress !== null ? d.progress : {};
+      const progressPercent = progressObj.progress_percent ?? d.progress_percent ?? 0;
+      const completedItems = progressObj.completed_items ?? d.items_completed ?? 0;
+      const totalItems = progressObj.total_items ?? d.total_items ?? 10;
+      const lastActivity = progressObj.last_activity_at ?? d.last_activity_time ?? null;
+      const name = d.course_name || d.name || 'Untitled Course';
+
+      return {
+        id: d.course_id || d.id,
+        name: name,
+        modulesComplete: completedItems,
+        modulesTotal: totalItems,
+        progress: progressPercent,
+        color: COLORS[idx % COLORS.length],
+        iconType: idx % 3 === 0 ? 'code' : idx % 3 === 1 ? 'grid' : 'monitor',
+        completed_at: lastActivity ? `Completed on ${new Date(lastActivity).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}` : 'Completed'
+      };
+    });
+  }, [rawCourses]);
 
   const completedCourses = courses.filter(c => c.progress === 100);
   const inProgressCourses = courses.filter(c => c.progress < 100);
@@ -104,7 +94,7 @@ export const CourseCardsTabs = () => {
     </div>
   );
 
-  if (loading) {
+  if (coursesLoading && !rawCourses) {
     return (
       <div className="w-full h-[180px] bg-bg-secondary dark:bg-bg-darkCard animate-pulse rounded-2xl" />
     );

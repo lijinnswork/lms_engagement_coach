@@ -3,6 +3,12 @@ import { fetchWithAuth } from '../stores/authStore'
 
 
 interface DashboardStore {
+  // Courses
+  courses: any[] | null
+  coursesLoading: boolean
+  fetchCourses: (force?: boolean) => Promise<void>
+  clearCourses: () => void
+
   // Coach card
   coachCardVisible: boolean
   replyOpen: boolean
@@ -33,7 +39,32 @@ interface DashboardStore {
   setSidebarVisible: (visible: boolean) => void
 }
 
-export const useDashboardStore = create<DashboardStore>((set) => ({
+export const useDashboardStore = create<DashboardStore>((set, get) => ({
+  // Courses
+  courses: null,
+  coursesLoading: false,
+  fetchCourses: async (force = false) => {
+    const state = get();
+    if (!force && state.courses !== null) return;
+    
+    set({ coursesLoading: true });
+    try {
+      const res = await fetchWithAuth('/api/courses');
+      if (res.ok) {
+        const data = await res.json();
+        set({ courses: data });
+      } else {
+        set({ courses: [] });
+      }
+    } catch (e) {
+      console.error("Failed to fetch courses", e);
+      set({ courses: [] });
+    } finally {
+      set({ coursesLoading: false });
+    }
+  },
+  clearCourses: () => set({ courses: null }),
+
   // Coach card
   coachCardVisible: true,
   replyOpen: false,

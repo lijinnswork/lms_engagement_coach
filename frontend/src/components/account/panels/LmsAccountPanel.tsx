@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuthStore, fetchWithAuth } from '../../../stores/authStore';
 import { ArrowLeft, CheckCircle, RefreshCw, AlertCircle, Unlink } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useDashboardStore } from '../../../store/dashboardStore';
 
 export const LmsAccountPanel = ({ onClose }: { onClose: () => void }) => {
   const { token, updateUser } = useAuthStore();
+  const { fetchCourses, clearCourses } = useDashboardStore();
   const [status, setStatus] = useState<{ connected: boolean; username: string | null; last_synced: string | null }>({
     connected: false,
     username: null,
@@ -62,6 +64,7 @@ export const LmsAccountPanel = ({ onClose }: { onClose: () => void }) => {
       updateUser({ lms_username: lmsUsername.trim(), openedx_user_id: lmsUsername.trim() });
       
       await fetchStatus();
+      await fetchCourses(true); // Force refresh of global course cache
     } catch (err: any) {
       setError(err.message || 'Failed to connect to Open edX.');
     } finally {
@@ -86,6 +89,7 @@ export const LmsAccountPanel = ({ onClose }: { onClose: () => void }) => {
 
       setSuccess('Sync completed successfully!');
       await fetchStatus();
+      await fetchCourses(true); // Force refresh of global course cache
     } catch (err: any) {
       setError(err.message || 'Sync failed.');
     } finally {
@@ -111,6 +115,7 @@ export const LmsAccountPanel = ({ onClose }: { onClose: () => void }) => {
       updateUser({ lms_username: undefined, openedx_user_id: undefined });
       setLmsUsername('');
       setStatus({ connected: false, username: null, last_synced: null });
+      clearCourses(); // Clear courses from global cache
       setSuccess('Disconnected successfully.');
     } catch (err: any) {
       setError(err.message || 'Failed to disconnect.');

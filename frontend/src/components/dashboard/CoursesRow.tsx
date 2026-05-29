@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { CourseCard } from './CourseCard';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
-import { fetchWithAuth } from '../../stores/authStore';
+import { useDashboardStore } from '../../store/dashboardStore';
 
 const COLORS = [
   '#7B9EA8', // Sage Blue
@@ -16,44 +16,34 @@ const COLORS = [
 
 export const CoursesRow = () => {
   const breakpoint = useBreakpoint();
-  const [courses, setCourses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { courses: rawCourses, coursesLoading, fetchCourses } = useDashboardStore();
 
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const res = await fetchWithAuth('/api/courses');
-        if (res.ok) {
-          const data = await res.json();
-          const mapped = data.map((d: any, idx: number) => {
-            const progressObj = typeof d.progress === 'object' && d.progress !== null ? d.progress : {};
-            const progressPercent = progressObj.progress_percent ?? d.progress_percent ?? 0;
-            const completedItems = progressObj.completed_items ?? d.items_completed ?? 0;
-            const totalItems = progressObj.total_items ?? d.total_items ?? 10;
-            const name = d.course_name || d.name || 'Untitled Course';
-
-            return {
-              id: d.course_id || d.id,
-              name: name,
-              modulesComplete: completedItems,
-              modulesTotal: totalItems,
-              progress: progressPercent,
-              color: COLORS[idx % COLORS.length],
-              iconType: idx % 3 === 0 ? 'code' : idx % 3 === 1 ? 'grid' : 'monitor'
-            };
-          });
-          setCourses(mapped);
-        }
-      } catch (e) {
-        console.error('Error fetching courses in Row:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchCourses();
-  }, []);
+  }, [fetchCourses]);
 
-  if (loading) {
+  const courses = useMemo(() => {
+    if (!rawCourses) return [];
+    return rawCourses.map((d: any, idx: number) => {
+      const progressObj = typeof d.progress === 'object' && d.progress !== null ? d.progress : {};
+      const progressPercent = progressObj.progress_percent ?? d.progress_percent ?? 0;
+      const completedItems = progressObj.completed_items ?? d.items_completed ?? 0;
+      const totalItems = progressObj.total_items ?? d.total_items ?? 10;
+      const name = d.course_name || d.name || 'Untitled Course';
+
+      return {
+        id: d.course_id || d.id,
+        name: name,
+        modulesComplete: completedItems,
+        modulesTotal: totalItems,
+        progress: progressPercent,
+        color: COLORS[idx % COLORS.length],
+        iconType: idx % 3 === 0 ? 'code' : idx % 3 === 1 ? 'grid' : 'monitor'
+      };
+    });
+  }, [rawCourses]);
+
+  if (coursesLoading && !rawCourses) {
     return (
       <div className="flex gap-4 mt-2 overflow-x-auto pb-4">
         {[1, 2, 3].map((i) => (
