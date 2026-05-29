@@ -229,3 +229,14 @@ def search_messages(q: str, conversation_id: uuid.UUID, db: Session = Depends(ge
     ).order_by(desc(CoachMessage.created_at)).limit(20).all()
     
     return messages
+
+@router.get("/lms-check/{username}")
+async def lms_check(username: str):
+    from app.services.openedx_client import openedx_client
+    try:
+        enrollments = await openedx_client.get_user_courses_direct(username)
+        return {"username": username, "enrollments": enrollments}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LMS check failed: {str(e)}")

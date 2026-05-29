@@ -444,6 +444,53 @@ class OpenEdxClient:
 
                 return expected_courses
 
+    async def get_user_courses_direct(self, username: str) -> list:
+        lms_url = settings.LMS_URL
+        admin_email = settings.LMS_ADMIN_EMAIL
+        admin_password = settings.LMS_ADMIN_PASSWORD
+        user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+        logger.info(f"LMS Direct Fetch: Starting for user {username}")
+
+        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=30.0) as client:
+            # Step A: Get initial cookies from root
+            await client.get(f"{lms_url}/")
+            
+            # Step B: Get CSRF token from login page
+            await client.get(f"{lms_url}/login")
+            csrf_token = client.cookies.get("csrftoken")
+
+            # Step C: AJAX Login
+            login_headers = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrf_token or '',
+                'Referer': f"{lms_url}/login"
+            }
+            login_data = {
+                'email': admin_email,
+                'password': admin_password
+            }
+            login_res = await client.post(f"{lms_url}/login_ajax", headers=login_headers, data=login_data)
+            
+            if login_res.status_code != 200:
+                raise Exception(f"LMS Login failed: {login_res.status_code}")
+
+            session_id = client.cookies.get("sessionid")
+            if not session_id:
+                raise Exception("Failed to obtain LMS sessionid")
+
+            # Step D: Fetch profile data
+            profile_url = f"{lms_url}/api/user/learning-profile/{username}/?page=1"
+            profile_res = await client.get(profile_url, headers={'Accept': 'application/json'})
+            
+            if profile_res.status_code == 404:
+                raise ValueError(f"Learner '{username}' not found.")
+            elif profile_res.status_code != 200:
+                raise Exception(f"LMS Profile fetch failed: {profile_res.status_code}")
+
+            data = profile_res.json()
+            return data.get("enrollments", [])
+
     async def close(self):
         if self._client:
             await self._client.aclose()
