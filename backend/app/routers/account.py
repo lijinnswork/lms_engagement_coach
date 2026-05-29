@@ -125,14 +125,12 @@ class ConnectLmsRequest(BaseModel):
     lms_username: str
 
 @router.get("/openedx/status")
-def openedx_status(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def openedx_status(current_user: User = Depends(get_current_user)):
     if current_user.lms_username:
-        cache = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).first()
-        last_synced = cache.created_at if cache else None
         return {
             "connected": True,
             "username": current_user.lms_username,
-            "last_synced": last_synced.isoformat() if last_synced else None
+            "last_synced": datetime.utcnow().isoformat()
         }
     return {"connected": False, "username": None, "last_synced": None}
 
@@ -149,25 +147,14 @@ async def openedx_connect(
     current_user.openedx_user_id = request.lms_username
     db.commit()
 
-    try:
-        from app.services.openedx_client import openedx_client
-        await openedx_client.sync_user_lms_data(db, current_user)
-    except Exception as e:
-        return {"message": "Connected, but initial sync failed", "warning": str(e)}
-
-    return {"message": "Successfully connected and synced to Open edX"}
+    return {"message": "Successfully connected to Open edX (Live Fetch Mode)"}
 
 @router.post("/openedx/sync")
-async def openedx_sync(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def openedx_sync(current_user: User = Depends(get_current_user)):
     if not current_user.lms_username:
         raise HTTPException(status_code=400, detail="Not connected to Open edX")
     
-    try:
-        from app.services.openedx_client import openedx_client
-        await openedx_client.sync_user_lms_data(db, current_user)
-        return {"message": "Sync complete"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+    return {"message": "Live sync mode active (Database caching bypassed)"}
 
 @router.post("/openedx/disconnect")
 def openedx_disconnect(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

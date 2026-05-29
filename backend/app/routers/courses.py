@@ -6,7 +6,6 @@ from app.db.models.user import User
 import logging
 
 logger = logging.getLogger(__name__)
-from app.db.models.lms_data_cache import LMSDataCache
 from app.db.models.goals import Goal
 from app.services.gemini_client import gemini_client
 from pydantic import BaseModel
@@ -36,60 +35,40 @@ def get_mock_course_data(course_id: str):
         "pass_fail_status": "pass",
         "assessments": [
             {
-                "assessment_name": "Quiz 1: Data Types",
+                "assessment_name": "Quiz 1",
                 "score": 92.0,
                 "max_score": 100.0,
                 "graded": True,
                 "timestamp": (now - timedelta(days=14)).isoformat() + "Z"
-            },
-            {
-                "assessment_name": "Quiz 2: Control Flow",
-                "score": 85.0,
-                "max_score": 100.0,
-                "graded": True,
-                "timestamp": (now - timedelta(days=7)).isoformat() + "Z"
-            },
-            {
-                "assessment_name": "Lab 1: Variables",
-                "score": 78.0,
-                "max_score": 100.0,
-                "graded": True,
-                "timestamp": (now - timedelta(days=2)).isoformat() + "Z"
             }
         ],
         "grade_last_updated": (now - timedelta(days=2)).isoformat() + "Z",
         "enrollment_date": (now - timedelta(days=30)).isoformat() + "Z"
     }
 
+async def get_live_courses(current_user: User):
+    if not current_user.lms_username:
+        return []
+    from app.services.openedx_client import openedx_client
+    try:
+        return await openedx_client.get_user_courses_direct(current_user.lms_username)
+    except Exception as e:
+        logger.error(f"Failed to fetch live courses for {current_user.lms_username}: {e}")
+        return []
+
 @router.get("")
 @router.get("/")
-async def get_courses_list(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
-    if not cache_entries and current_user.lms_username:
-        try:
-            logger.info(f"First-load sync for user {current_user.email}")
-            from app.services.openedx_client import openedx_client
-            await openedx_client.sync_user_lms_data(db, current_user)
-            # Re-query the cache
-            cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
-        except Exception as e:
-            logger.error(f"Synchronous first-load sync failed: {e}")
-            
-    if not cache_entries:
-        return []
-    return [entry.data for entry in cache_entries]
+async def get_courses_list(current_user: User = Depends(get_current_user)):
+    return await get_live_courses(current_user)
 
 @router.get("/upcoming-assignments")
-async def get_upcoming_assignments(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    now = datetime.now()
-    return {
-        "overdue": [], "today": [], "tomorrow": [], "this_week": []
-    }
+async def get_upcoming_assignments(current_user: User = Depends(get_current_user)):
+    return {"overdue": [], "today": [], "tomorrow": [], "this_week": []}
 
 @router.get("/overall-progress")
-async def get_overall_progress(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
-    if not cache_entries:
+async def get_overall_progress(current_user: User = Depends(get_current_user)):
+    courses = await get_live_courses(current_user)
+    if not courses:
         return {
             "overall_percent": 0,
             "course_count_in_progress": 0,
@@ -102,13 +81,12 @@ async def get_overall_progress(db: Session = Depends(get_db), current_user: User
     total_percent = 0.0
     per_course = []
     
-    for entry in cache_entries:
-        d = entry.data
+    for d in courses:
         progress = d.get("progress_percent", 0.0) or d.get("progress", 0.0) or 0.0
         course_name = d.get("course_name", d.get("name", ""))
         
         per_course.append({
-            "course_id": entry.course_id,
+            "course_id": d.get("course_id"),
             "course_name": course_name,
             "progress_percent": progress
         })
@@ -120,7 +98,7 @@ async def get_overall_progress(db: Session = Depends(get_db), current_user: User
             
         total_percent += progress
         
-    overall_percent = int(total_percent / len(cache_entries)) if cache_entries else 0
+    overall_percent = int(total_percent / len(courses)) if courses else 0
     
     return {
         "overall_percent": overall_percent,
@@ -130,38 +108,26 @@ async def get_overall_progress(db: Session = Depends(get_db), current_user: User
     }
 
 @router.get("/{course_id}")
-async def get_course_detail(course_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cache_entry = db.query(LMSDataCache).filter(
-        LMSDataCache.user_id == current_user.id,
-        LMSDataCache.course_id == course_id
-    ).first()
-    
-    if not cache_entry or not cache_entry.data:
-        return get_mock_course_data(course_id)
-        
-    return cache_entry.data
+async def get_course_detail(course_id: str, current_user: User = Depends(get_current_user)):
+    courses = await get_live_courses(current_user)
+    for c in courses:
+        if c.get("course_id") == course_id:
+            return c
+    return get_mock_course_data(course_id)
 
 @router.get("/{course_id}/coach-take")
-async def get_coach_take(course_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cache_entry = db.query(LMSDataCache).filter(
-        LMSDataCache.user_id == current_user.id,
-        LMSDataCache.course_id == course_id
-    ).first()
-    
-    data = cache_entry.data if cache_entry and cache_entry.data else get_mock_course_data(course_id)
+async def get_coach_take(course_id: str, current_user: User = Depends(get_current_user)):
+    courses = await get_live_courses(current_user)
+    data = None
+    for c in courses:
+        if c.get("course_id") == course_id:
+            data = c
+            break
+            
+    if not data:
+        data = get_mock_course_data(course_id)
+        
     now = datetime.utcnow()
-    
-    if cache_entry and cache_entry.data:
-        coach_take_text = data.get("coach_take_text")
-        generated_at_str = data.get("coach_take_generated_at")
-        if coach_take_text and generated_at_str:
-            generated_at = datetime.fromisoformat(generated_at_str.replace("Z", "+00:00")).replace(tzinfo=None)
-            if (now - generated_at).total_seconds() < 24 * 3600:
-                return {
-                    "text": coach_take_text,
-                    "generated_at": generated_at_str,
-                    "is_cached": True
-                }
                 
     progress_pct = data.get("progress_percent", 0)
     items_completed = data.get("items_completed", 0)
@@ -172,11 +138,14 @@ async def get_coach_take(course_id: str, db: Session = Depends(get_db), current_
     
     days_since = 0
     if last_activity_time:
-        last_dt = datetime.fromisoformat(last_activity_time.replace("Z", "+00:00")).replace(tzinfo=None)
-        days_since = (now - last_dt).days
-        
+        try:
+            last_dt = datetime.fromisoformat(last_activity_time.replace("Z", "+00:00")).replace(tzinfo=None)
+            days_since = (now - last_dt).days
+        except:
+            pass
+            
     assessments = data.get("assessments", [])
-    assessment_summary = ", ".join([f"{a['assessment_name']}: {a['score']}%" for a in assessments[:3]])
+    assessment_summary = ", ".join([f"{a.get('assessment_name', '')}: {a.get('score', 0)}%" for a in assessments[:3]])
     
     prompt = f"""
 You are the student's learning coach. Generate a SHORT, personalized observation (2-3 sentences max) about their progress in this specific course.
@@ -204,12 +173,6 @@ Rules:
         coach_text = "Keep going — you're making progress! 💪"
         
     generated_at_iso = now.isoformat() + "Z"
-    if cache_entry:
-        new_data = dict(data)
-        new_data["coach_take_text"] = coach_text
-        new_data["coach_take_generated_at"] = generated_at_iso
-        cache_entry.data = new_data
-        db.commit()
         
     return {
         "text": coach_text,
@@ -219,18 +182,24 @@ Rules:
 
 @router.get("/{course_id}/pace")
 async def get_course_pace(course_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cache_entry = db.query(LMSDataCache).filter(
-        LMSDataCache.user_id == current_user.id,
-        LMSDataCache.course_id == course_id
-    ).first()
-    
-    data = cache_entry.data if cache_entry and cache_entry.data else get_mock_course_data(course_id)
-    
+    courses = await get_live_courses(current_user)
+    data = None
+    for c in courses:
+        if c.get("course_id") == course_id:
+            data = c
+            break
+            
+    if not data:
+        data = get_mock_course_data(course_id)
+        
     now = datetime.utcnow()
     enrollment_str = data.get("enrollment_date")
     if enrollment_str:
-        enroll_dt = datetime.fromisoformat(enrollment_str.replace("Z", "+00:00")).replace(tzinfo=None)
-        days_since_enrollment = (now - enroll_dt).days
+        try:
+            enroll_dt = datetime.fromisoformat(enrollment_str.replace("Z", "+00:00")).replace(tzinfo=None)
+            days_since_enrollment = (now - enroll_dt).days
+        except:
+            days_since_enrollment = 30
     else:
         days_since_enrollment = 30
         
