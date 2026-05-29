@@ -6,7 +6,7 @@ export const ContinueAction = ({ data }: { data: any }) => {
   const isComplete = itemsRemaining === 0 && data.total_items > 0;
 
   const handleContinue = () => {
-    const LMS_URL = import.meta.env.VITE_LMS_URL || 'https://iimbx.site';
+    const LMS_URL = import.meta.env.VITE_LMS_URL || 'https://iimbx.edu.in';
     window.open(`${LMS_URL}/courses/${data.course_id}/course/`, '_blank');
   };
 

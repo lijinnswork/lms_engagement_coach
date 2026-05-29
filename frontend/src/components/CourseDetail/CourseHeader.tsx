@@ -11,7 +11,7 @@ export const CourseHeader: React.FC<CourseHeaderProps> = ({ courseName, courseId
   const navigate = useNavigate();
 
   const handleOpenLms = () => {
-    const LMS_URL = import.meta.env.VITE_LMS_URL || 'https://iimbx.site';
+    const LMS_URL = import.meta.env.VITE_LMS_URL || 'https://iimbx.edu.in';
     window.open(`${LMS_URL}/courses/${courseId}/course/`, '_blank');
   };
 
