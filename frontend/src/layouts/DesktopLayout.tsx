@@ -260,7 +260,7 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
         <div className="w-full max-w-[1600px] mx-auto flex items-center h-full">
           <div className="w-[160px] h-full flex items-center justify-center shrink-0 relative px-2">
             <button onClick={() => navigate('/')} className="focus:outline-none transition-opacity hover:opacity-80">
-              <img src="/logo.png" alt="IIMB Logo" className="h-[96px] object-contain scale-[1.5] origin-center" />
+              <img src="/logo.png" alt="IIMB Logo" className="h-[110px] object-contain scale-[1.75] origin-center" />
             </button>
             <div className="absolute right-0 top-1/2 -translate-y-1/2 h-[36px] w-px bg-border-light dark:bg-border-dark"></div>
           </div>
