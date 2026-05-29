@@ -479,17 +479,31 @@ class OpenEdxClient:
             if not session_id:
                 raise Exception("Failed to obtain LMS sessionid")
 
-            # Step D: Fetch profile data
-            profile_url = f"{lms_url}/api/user/learning-profile/{username}/?page=1"
-            profile_res = await client.get(profile_url, headers={'Accept': 'application/json'})
-            
-            if profile_res.status_code == 404:
-                raise ValueError(f"Learner '{username}' not found.")
-            elif profile_res.status_code != 200:
-                raise Exception(f"LMS Profile fetch failed: {profile_res.status_code}")
+            # Step D: Fetch profile data page-by-page
+            all_enrollments = []
+            current_page = 1
+            total_pages = 1
 
-            data = profile_res.json()
-            return data.get("enrollments", [])
+            while current_page <= total_pages:
+                logger.info(f"LMS Direct Fetch: Fetching profile page {current_page} of {total_pages}")
+                profile_url = f"{lms_url}/api/user/learning-profile/{username}/?page={current_page}"
+                profile_res = await client.get(profile_url, headers={'Accept': 'application/json'})
+                
+                if profile_res.status_code == 404 and current_page == 1:
+                    raise ValueError(f"Learner '{username}' not found.")
+                elif profile_res.status_code != 200:
+                    raise Exception(f"LMS Profile fetch failed on page {current_page}: {profile_res.status_code}")
+
+                data = profile_res.json()
+                enrollments = data.get("enrollments", [])
+                all_enrollments.extend(enrollments)
+                
+                if current_page == 1 and "pagination" in data:
+                    total_pages = data["pagination"].get("total_pages", 1)
+                    
+                current_page += 1
+
+            return all_enrollments
 
     async def close(self):
         if self._client:
