@@ -82,7 +82,12 @@ async def get_overall_progress(current_user: User = Depends(get_current_user)):
     per_course = []
     
     for d in courses:
-        progress = d.get("progress_percent", 0.0) or d.get("progress", 0.0) or 0.0
+        progress_data = d.get("progress", {})
+        if isinstance(progress_data, dict):
+            progress = progress_data.get("progress_percent", 0.0) or 0.0
+        else:
+            progress = d.get("progress_percent", 0.0) or 0.0
+            
         course_name = d.get("course_name", d.get("name", ""))
         
         per_course.append({
@@ -129,12 +134,26 @@ async def get_coach_take(course_id: str, current_user: User = Depends(get_curren
         
     now = datetime.utcnow()
                 
-    progress_pct = data.get("progress_percent", 0)
-    items_completed = data.get("items_completed", 0)
-    total_items = data.get("total_items", 0)
-    overall_grade = data.get("overall_grade", 0)
-    pass_fail_status = data.get("pass_fail_status", "unknown")
-    last_activity_time = data.get("last_activity_time")
+    progress_data = data.get("progress", {})
+    grade_data = data.get("grade", {})
+    
+    if isinstance(progress_data, dict):
+        progress_pct = progress_data.get("progress_percent", 0)
+        items_completed = progress_data.get("completed_items", 0)
+        total_items = progress_data.get("total_items", 0)
+    else:
+        progress_pct = data.get("progress_percent", 0)
+        items_completed = data.get("items_completed", 0)
+        total_items = data.get("total_items", 0)
+        
+    if isinstance(grade_data, dict):
+        overall_grade = grade_data.get("grade_percent", 0)
+        pass_fail_status = "pass" if grade_data.get("passed") else "fail"
+    else:
+        overall_grade = data.get("overall_grade", 0)
+        pass_fail_status = data.get("pass_fail_status", "unknown")
+        
+    last_activity_time = data.get("last_activity_time") or (progress_data.get("last_activity_at") if isinstance(progress_data, dict) else None)
     
     days_since = 0
     if last_activity_time:
@@ -205,8 +224,14 @@ async def get_course_pace(course_id: str, db: Session = Depends(get_db), current
         
     days_since_enrollment = max(days_since_enrollment, 1)
     
-    items_completed = data.get("items_completed", 0)
-    total_items = data.get("total_items", 0)
+    progress_data = data.get("progress", {})
+    if isinstance(progress_data, dict):
+        items_completed = progress_data.get("completed_items", 0)
+        total_items = progress_data.get("total_items", 0)
+    else:
+        items_completed = data.get("items_completed", 0)
+        total_items = data.get("total_items", 0)
+        
     items_remaining = total_items - items_completed
     
     items_per_day = items_completed / days_since_enrollment
