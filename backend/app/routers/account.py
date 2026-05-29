@@ -144,7 +144,6 @@ async def openedx_connect(
         raise HTTPException(status_code=400, detail="LMS username is required")
         
     current_user.lms_username = request.lms_username
-    current_user.openedx_user_id = request.lms_username
     db.commit()
 
     return {"message": "Successfully connected to Open edX (Live Fetch Mode)"}
