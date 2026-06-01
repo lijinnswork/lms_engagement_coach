@@ -57,7 +57,10 @@ def get_current_user(
                     )
                 # Only update last_active if it's been more than 5 minutes to avoid excessive DB writes
                 now = datetime.now(timezone.utc)
-                if (now - user_session.last_active).total_seconds() > 300:
+                last_active = user_session.last_active
+                if last_active.tzinfo is None:
+                    now = datetime.utcnow()
+                if (now - last_active).total_seconds() > 300:
                     user_session.last_active = now
                     db.commit()
         except ValueError:

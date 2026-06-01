@@ -297,13 +297,25 @@ export const AdminDashboard: React.FC = () => {
             
             <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
               <h3 className="text-white font-medium mb-4">Course Progress</h3>
-              <div className="space-y-3 relative">
-                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center rounded-md z-10">
-                   <span className="text-sm text-gray-300 bg-[#1C2128] px-3 py-1 rounded-full border border-[#3A3F4D]">LMS Sync Pending</span>
-                 </div>
-                 {/* Fake bars behind overlay */}
-                 <div className="w-full bg-[#1C2128] rounded-full h-3"><div className="bg-[#B4C7B8] h-3 rounded-full w-[45%]"></div></div>
-                 <div className="w-full bg-[#1C2128] rounded-full h-3"><div className="bg-[#B4C7B8] h-3 rounded-full w-[60%]"></div></div>
+              <div className="space-y-4 max-h-[180px] overflow-y-auto pr-1">
+                 {statsData?.course_progress && statsData.course_progress.length > 0 ? (
+                   statsData.course_progress.map((course: any, idx: number) => (
+                     <div key={idx} className="space-y-1">
+                       <div className="flex justify-between text-xs">
+                         <span className="text-gray-300 truncate max-w-[70%] font-sans">{course.course_name}</span>
+                         <span className="text-gray-400 font-mono">{course.progress_percent}%</span>
+                       </div>
+                       <div className="w-full bg-[#1C2128] rounded-full h-2">
+                         <div 
+                           className="bg-[#B4C7B8] h-2 rounded-full transition-all duration-500" 
+                           style={{ width: `${course.progress_percent}%` }}
+                         />
+                       </div>
+                     </div>
+                   ))
+                 ) : (
+                   <p className="text-xs text-gray-500 italic py-4 text-center">No progress data cached yet.</p>
+                 )}
               </div>
             </div>
          </div>

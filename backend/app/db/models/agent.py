@@ -9,16 +9,26 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base, TimestampMixin
 
 class AgentName(str, enum.Enum):
-    engagement  = "engagement"
-    wellbeing   = "wellbeing"
-    momentum    = "momentum"
-    goal        = "goal"
-    curiosity   = "curiosity"
+    engagement         = "engagement"
+    wellbeing          = "wellbeing"
+    momentum           = "momentum"
+    goal               = "goal"
+    curiosity          = "curiosity"
+    decision_engine    = "decision_engine"
+    delivery_service   = "delivery_service"
+    engagement_watcher = "engagement_watcher"
+    momentum_watcher   = "momentum_watcher"
+    wellbeing_watcher  = "wellbeing_watcher"
+    goal_watcher       = "goal_watcher"
+    curiosity_watcher  = "curiosity_watcher"
+    motivation_watcher = "motivation_watcher"
 
 class AgentDecision(str, enum.Enum):
     speak        = "speak"
     stay_silent  = "stay_silent"
     wait         = "wait"
+    error        = "error"
+    sent         = "sent"
 
 class AgentLog(Base, TimestampMixin):
     __tablename__ = "agent_logs"

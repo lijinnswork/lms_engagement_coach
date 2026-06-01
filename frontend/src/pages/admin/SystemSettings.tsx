@@ -26,6 +26,7 @@ export const SystemSettings: React.FC = () => {
   const [logsCount, setLogsCount] = useState<number>(0);
   const [usersCount, setUsersCount] = useState<number>(0);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
+  const [lastSync, setLastSync] = useState<string>('Never');
 
   const checkHealth = async () => {
     try {
@@ -35,6 +36,7 @@ export const SystemSettings: React.FC = () => {
         const data = await res.json();
         if (data.status === 'healthy') {
           setHealthStatus('healthy');
+          setLastSync(data.last_sync || 'Never');
         } else {
           setHealthStatus('error');
         }
@@ -186,7 +188,7 @@ export const SystemSettings: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between">
                      <span className="text-sm text-gray-400">Last successful data sync</span>
-                     <span className="text-sm text-gray-200">10 mins ago</span>
+                     <span className="text-sm text-gray-200">{lastSync}</span>
                   </div>
                   <div className="flex items-center justify-between">
                      <span className="text-sm text-gray-400">API Gateway URL</span>
