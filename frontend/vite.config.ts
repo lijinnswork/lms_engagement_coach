@@ -57,22 +57,14 @@ export default defineConfig({
       },
       // Non-api fallback proxies for coach and admin
       '/coach': {
-        target: 'http://127.0.0.1:8088',
+        target: 'http://localhost:8088',
         changeOrigin: true,
-        bypass: (req) => {
-          if (req.headers.accept?.indexOf('html') !== -1) {
-            return '/index.html';
-          }
-        }
+        bypass: () => '/index.html'
       },
       '/admin': {
-        target: 'http://127.0.0.1:8088',
+        target: 'http://localhost:8088',
         changeOrigin: true,
-        bypass: (req) => {
-          if (req.headers.accept?.indexOf('html') !== -1) {
-            return '/index.html';
-          }
-        }
+        bypass: () => '/index.html'
       }
     }
   }
