@@ -17,7 +17,8 @@ class GeminiClient:
             response = self.model.generate_content(prompt)
             return response.text.strip()
         except Exception as e:
-            print(f"Gemini API Error: {e}")
-            return "I run into a small issue forming a thought right now. Let's try again in a moment."
+            error_msg = str(e)
+            print(f"Gemini API Error: {error_msg}")
+            return f"I ran into an issue connecting to Gemini. The exact error is: {error_msg}"
 
 gemini_client = GeminiClient()
