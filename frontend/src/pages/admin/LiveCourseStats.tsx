@@ -25,12 +25,14 @@ export const LiveCourseStats: React.FC = () => {
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [page, setPage] = useState<number>(1);
   const [inputPage, setInputPage] = useState<string>('1');
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasFetched, setHasFetched] = useState<boolean>(false);
 
   const fetchStats = async (pageNum: number) => {
     setLoading(true);
     setError(null);
+    setHasFetched(true);
     try {
       const response = await fetchWithAuth(`/api/admin/live-course-stats?page=${pageNum}`);
       if (!response.ok) {
@@ -47,10 +49,6 @@ export const LiveCourseStats: React.FC = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchStats(page);
-  }, []);
 
   const handlePageSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,37 +67,48 @@ export const LiveCourseStats: React.FC = () => {
         </div>
         
         {/* Pagination Controls */}
-        <div className="flex items-center gap-4 bg-[#1C2128] p-2 rounded-lg border border-[#3A3F4D]">
-          <button 
-            onClick={() => fetchStats(page - 1)} 
-            disabled={page <= 1 || loading}
-            className="p-2 text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          
-          <form onSubmit={handlePageSubmit} className="flex items-center gap-2">
-            <span className="text-sm text-gray-400">Page</span>
-            <input 
-              type="number" 
-              value={inputPage}
-              onChange={(e) => setInputPage(e.target.value)}
-              className="w-16 bg-[#0D1117] border border-[#3A3F4D] text-white rounded px-2 py-1 text-center focus:outline-none focus:border-[#00D8FF]"
-              min={1}
-              max={pagination?.total_pages || undefined}
-            />
-            {pagination && (
-              <span className="text-sm text-gray-400">of {pagination.total_pages}</span>
-            )}
-          </form>
+        <div className="flex items-center gap-4">
+          {!hasFetched ? (
+            <button 
+              onClick={() => fetchStats(1)}
+              className="px-4 py-2 bg-[#00D8FF] text-black font-medium rounded-lg hover:bg-[#00b5d6] transition-colors"
+            >
+              Fetch Data
+            </button>
+          ) : (
+            <div className="flex items-center gap-4 bg-[#1C2128] p-2 rounded-lg border border-[#3A3F4D]">
+              <button 
+                onClick={() => fetchStats(page - 1)} 
+                disabled={page <= 1 || loading}
+                className="p-2 text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              
+              <form onSubmit={handlePageSubmit} className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">Page</span>
+                <input 
+                  type="number" 
+                  value={inputPage}
+                  onChange={(e) => setInputPage(e.target.value)}
+                  className="w-16 bg-[#0D1117] border border-[#3A3F4D] text-white rounded px-2 py-1 text-center focus:outline-none focus:border-[#00D8FF]"
+                  min={1}
+                  max={pagination?.total_pages || undefined}
+                />
+                {pagination && (
+                  <span className="text-sm text-gray-400">of {pagination.total_pages}</span>
+                )}
+              </form>
 
-          <button 
-            onClick={() => fetchStats(page + 1)} 
-            disabled={(!pagination?.next && pagination !== null) || loading}
-            className="p-2 text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
-          >
-            <ChevronRight size={20} />
-          </button>
+              <button 
+                onClick={() => fetchStats(page + 1)} 
+                disabled={(!pagination?.next && pagination !== null) || loading}
+                className="p-2 text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
