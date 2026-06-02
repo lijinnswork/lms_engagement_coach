@@ -6,7 +6,7 @@ from app.config import settings
 
 require_super_admin = RoleChecker(["super_admin", "support_staff", "student"])
 
-router = APIRouter(prefix="/api/admin/live-course-stats", tags=["admin_stats"])
+router = APIRouter(prefix="/admin/live-course-stats", tags=["admin_stats"])
 
 @router.get("", dependencies=[Depends(require_super_admin)])
 async def get_live_course_stats(page: int = Query(1, ge=1), current_user: User = Depends(get_current_user)):
