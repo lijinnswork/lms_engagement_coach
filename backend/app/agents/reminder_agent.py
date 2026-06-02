@@ -12,12 +12,7 @@ class ReminderSuggestionAgent(BaseWatcher):
     1. Goal pacing: If goal end date is close and progress is low, suggest session.
     2. Missing routine: If no active reminders exist for the week, suggest one.
     """
-    
-    def __init__(self):
-        super().__init__(
-            name="reminder_agent",
-            description="Analyzes schedule to propose proactive reminders."
-        )
+    agent_name: str = "reminder_agent"
         
     async def observe(self, user_id: str, db: Session) -> WatcherResult:
         now = datetime.datetime.utcnow()
@@ -49,7 +44,7 @@ class ReminderSuggestionAgent(BaseWatcher):
                         db.commit()
                         
                         return WatcherResult(
-                            agent_name=self.name,
+                            agent_name=self.agent_name,
                             observation={"goal_id": goal.id, "days_left": days_left, "progress": goal.progress},
                             should_speak=False, # We don't speak, we just create a suggestion
                             reasoning="Created reminder suggestion for lagging goal."
@@ -98,7 +93,7 @@ class ReminderSuggestionAgent(BaseWatcher):
                                 db.commit()
                                 
                                 return WatcherResult(
-                                    agent_name=self.name,
+                                    agent_name=self.agent_name,
                                     observation={"assessment_name": ass.get('assessment_name'), "course_id": course_id, "days_left": days_left},
                                     should_speak=False,
                                     reasoning=f"Created reminder suggestion for upcoming assessment: {ass.get('assessment_name')}."
@@ -107,7 +102,7 @@ class ReminderSuggestionAgent(BaseWatcher):
                         pass
         
         return WatcherResult(
-            agent_name=self.name,
+            agent_name=self.agent_name,
             observation={"status": "No suggestions needed"},
             should_speak=False,
             reasoning="Schedule looks good."

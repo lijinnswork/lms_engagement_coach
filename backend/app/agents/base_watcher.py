@@ -4,14 +4,23 @@ from app.db.models import User, LMSDataCache, CoachMessage
 from sqlalchemy import desc
 
 class WatcherResult:
-    def __init__(self, should_speak: bool, priority: int, agent_name: str, observation: Dict[str, Any], reasoning: str, suggested_action: str, context_for_message: Dict[str, Any]):
+    def __init__(
+        self,
+        should_speak: bool = False,
+        priority: int = 5,
+        agent_name: str = "base",
+        observation: Dict[str, Any] = None,
+        reasoning: str = "",
+        suggested_action: str = "",
+        context_for_message: Dict[str, Any] = None
+    ):
         self.should_speak = should_speak
         self.priority = priority
         self.agent_name = agent_name
-        self.observation = observation
+        self.observation = observation or {}
         self.reasoning = reasoning
         self.suggested_action = suggested_action
-        self.context_for_message = context_for_message
+        self.context_for_message = context_for_message or {}
 
 class BaseWatcher:
     agent_name: str = "base"
