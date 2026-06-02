@@ -114,8 +114,8 @@ class OpenEdxClient:
         logger.info(f"LMS Sync: Starting for user {lms_username}")
 
         # Use an AsyncClient to manage cookie state across redirects/requests
-        # We explicitly set verify=False and timeout=3.0 to fail-fast and bypass SSL or slow network routing issues
-        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=3.0) as client:
+        # We explicitly set verify=False and timeout=30.0 to prevent premature timeouts on slow LMS servers
+        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=30.0) as client:
             try:
                 # Step A: Get initial cookies from root
                 root_res = await client.get(f"{lms_url}/")
