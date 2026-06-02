@@ -54,7 +54,7 @@ export const CourseCardsTabs = () => {
     <div 
       key={course.id}
       onClick={() => navigate(`/course/${course.id}`)}
-      className="flex-shrink-0 w-[240px] p-5 rounded-2xl bg-bg-secondary dark:bg-bg-darkCard border border-border-light dark:border-border-dark cursor-pointer hover:shadow-md hover:border-accent-primary transition-all relative overflow-hidden group"
+      className="w-full p-5 rounded-2xl bg-bg-secondary dark:bg-bg-darkCard border border-border-light dark:border-border-dark cursor-pointer hover:shadow-md hover:border-accent-primary transition-all relative overflow-hidden group"
     >
       {isCompleted && (
         <div className="absolute top-4 right-4 text-green-500 bg-white dark:bg-transparent rounded-full">
@@ -130,7 +130,7 @@ export const CourseCardsTabs = () => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
-          className="flex overflow-x-auto gap-4 pb-4 hidden-scrollbar"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
         >
           {activeTab === 'in_progress' ? (
             inProgressCourses.length > 0 ? (
