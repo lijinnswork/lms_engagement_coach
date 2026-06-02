@@ -4,7 +4,7 @@ from app.api.deps import RoleChecker, get_current_user
 from app.db.models.user import User
 from app.config import settings
 
-require_super_admin = RoleChecker(["super_admin"])
+require_super_admin = RoleChecker(["super_admin", "support_staff", "student"])
 
 router = APIRouter(prefix="/api/admin/live-course-stats", tags=["admin_stats"])
 

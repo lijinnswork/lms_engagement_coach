@@ -27,13 +27,34 @@ import { SystemSettings } from './pages/admin/SystemSettings';
 import { AnnouncementsManager } from './pages/admin/AnnouncementsManager';
 import { LiveCourseStats } from './pages/admin/LiveCourseStats';
 
+import { useAuthStore } from './stores/authStore';
+
 function App() {
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
+  const { user, login } = useAuthStore();
 
-  // In a real app, this would poll or listen to websockets
   React.useEffect(() => {
-    // Example: setToastMsg("Time for your calculus study session!");
-  }, []);
+    const autoLogin = async () => {
+      if (!user && import.meta.env.DEV) {
+        try {
+          const res = await fetch('/api/auth/dev-login');
+          if (res.ok) {
+            const data = await res.json();
+            const profileRes = await fetch('/api/account/profile', {
+              headers: { 'Authorization': `Bearer ${data.access_token}` }
+            });
+            if (profileRes.ok) {
+              const profile = await profileRes.json();
+              login(profile, data.access_token);
+            }
+          }
+        } catch (e) {
+          console.error('Dev login failed', e);
+        }
+      }
+    };
+    autoLogin();
+  }, [user, login]);
 
   return (
     <BrowserRouter>

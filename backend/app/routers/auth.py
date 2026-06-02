@@ -91,3 +91,37 @@ def login(
     access_token = create_access_token(data={"sub": str(user.id), "session_id": str(new_session.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.get("/dev-login")
+def dev_login(request: Request, db: Session = Depends(get_db)):
+    """Auto-login endpoint for development mode only"""
+    email = "admin@iimbx.iimb.ac.in"
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
+        # Create a mock admin user
+        hashed_password = get_password_hash("admin123")
+        user = User(
+            email=email,
+            password_hash=hashed_password,
+            full_name="Auto Admin",
+            role="super_admin"
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+    user.last_login = datetime.now(timezone.utc)
+    
+    new_session = UserSession(
+        user_id=user.id,
+        device_info="Localhost Auto Login",
+        device_type="desktop",
+        ip_address="127.0.0.1",
+        last_active=datetime.now(timezone.utc)
+    )
+    db.add(new_session)
+    db.commit()
+    
+    access_token = create_access_token(data={"sub": str(user.id), "session_id": str(new_session.id)})
+    return {"access_token": access_token, "token_type": "bearer"}
+
