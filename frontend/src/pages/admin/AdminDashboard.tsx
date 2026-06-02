@@ -297,19 +297,32 @@ export const AdminDashboard: React.FC = () => {
             
             <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
               <h3 className="text-white font-medium mb-4">Course Progress</h3>
-              <div className="space-y-4 max-h-[180px] overflow-y-auto pr-1">
+              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
                  {statsData?.course_progress && statsData.course_progress.length > 0 ? (
                    statsData.course_progress.map((course: any, idx: number) => (
-                     <div key={idx} className="space-y-1">
+                     <div key={idx} className="space-y-1.5 pb-3 border-b border-[#3A3F4D]/40 last:border-0 last:pb-0">
                        <div className="flex justify-between text-xs">
-                         <span className="text-gray-300 truncate max-w-[70%] font-sans">{course.course_name}</span>
-                         <span className="text-gray-400 font-mono">{course.progress_percent}%</span>
+                         <span className="text-gray-300 truncate max-w-[70%] font-sans font-medium">{course.course_name}</span>
+                         <span className="text-gray-400 font-mono">{course.avg_progress_percent}% avg</span>
                        </div>
                        <div className="w-full bg-[#1C2128] rounded-full h-2">
                          <div 
                            className="bg-[#B4C7B8] h-2 rounded-full transition-all duration-500" 
-                           style={{ width: `${course.progress_percent}%` }}
+                           style={{ width: `${course.avg_progress_percent}%` }}
                          />
+                       </div>
+                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-gray-400 pt-0.5 font-sans">
+                         <span className="flex items-center gap-0.5">
+                           <span className="text-gray-500">👥</span> {course.total_enrolled_learners} enrolled
+                         </span>
+                         <span className="text-gray-600">·</span>
+                         <span className="flex items-center gap-0.5">
+                           <span className="text-gray-500">📈</span> Grade: {course.avg_grade_percent}%
+                         </span>
+                         <span className="text-gray-600">·</span>
+                         <span className="flex items-center gap-0.5">
+                           <span className="text-gray-500">📝</span> Graded: {course.graded_learners_count}
+                         </span>
                        </div>
                      </div>
                    ))
@@ -318,7 +331,7 @@ export const AdminDashboard: React.FC = () => {
                  )}
               </div>
             </div>
-         </div>
+          </div>
 
          {/* Activity feed column */}
          <div className="lg:col-span-2 bg-[#242834] border border-[#3A3F4D] rounded-xl p-5 h-full flex flex-col">

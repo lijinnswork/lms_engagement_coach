@@ -73,21 +73,50 @@ async def get_dashboard_stats(period: str = '30d', current_user: User = Depends(
         if (now - last_active.replace(tzinfo=None)).days > 14:
             inactive_count += 1
 
-    # 6. Course Progress List
-    course_progress_map = {}
+    # 6. Course Progress List & Aggregate Stats
+    course_stats_map = {}
     for c in caches:
-        name = c.data.get("course_name") or c.data.get("course_details", {}).get("course_name") or c.course_id
-        pct = c.data.get("progress_percent") or c.data.get("progress", {}).get("progress_percent") or 0.0
-        if name not in course_progress_map:
-            course_progress_map[name] = []
-        course_progress_map[name].append(pct)
+        course_id = c.course_id
+        data = c.data or {}
+        
+        name = data.get("course_name") or data.get("course_details", {}).get("course_name") or course_id
+        pct = data.get("progress_percent") or data.get("progress", {}).get("progress_percent") or 0.0
+        
+        grade = data.get("overall_grade") or data.get("grade", {}).get("grade_percent")
+        
+        if course_id not in course_stats_map:
+            course_stats_map[course_id] = {
+                "course_name": name,
+                "progress_list": [],
+                "grade_list": [],
+                "graded_count": 0
+            }
+            
+        course_stats_map[course_id]["progress_list"].append(pct)
+        if grade is not None:
+            course_stats_map[course_id]["grade_list"].append(grade)
+            
+        # Check if they have any graded assessments
+        assessments = data.get("assessments", [])
+        has_graded_assessments = any(a.get("graded", False) for a in assessments)
+        if has_graded_assessments:
+            course_stats_map[course_id]["graded_count"] += 1
 
     course_progress = []
-    for name, pcts in course_progress_map.items():
-        avg_pct = sum(pcts) / len(pcts) if pcts else 0
+    for cid, stats in course_stats_map.items():
+        pcts = stats["progress_list"]
+        grades = stats["grade_list"]
+        
+        avg_pct = sum(pcts) / len(pcts) if pcts else 0.0
+        avg_grade = sum(grades) / len(grades) if grades else 0.0
+        
         course_progress.append({
-            "course_name": name,
-            "progress_percent": round(avg_pct, 1)
+            "course_id": cid,
+            "course_name": stats["course_name"],
+            "total_enrolled_learners": len(pcts),
+            "avg_progress_percent": round(avg_pct, 1),
+            "avg_grade_percent": round(avg_grade, 1),
+            "graded_learners_count": stats["graded_count"]
         })
 
     return {
