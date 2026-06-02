@@ -49,9 +49,10 @@ app.include_router(notifications.router)
 app.include_router(account.router)
 app.include_router(dashboard.router)
 
-from app.routers import admin_router, admin_coach_studio
+from app.routers import admin_router, admin_coach_studio, admin_course_stats
 app.include_router(admin_router.router)
 app.include_router(admin_coach_studio.router)
+app.include_router(admin_course_stats.router)
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Learner Engagement Coach API"}

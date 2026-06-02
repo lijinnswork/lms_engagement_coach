@@ -45,6 +45,7 @@ export const AdminSidebar: React.FC = () => {
   const navItems = [
     { name: 'Dashboard', path: '/admin', icon: <BarChart3 size={20} />, roles: ['support_staff', 'super_admin'] },
     { name: 'Users', path: '/admin/users', icon: <Users size={20} />, roles: ['support_staff', 'super_admin'] },
+    { name: 'Live Stats', path: '/admin/live-stats', icon: <BarChart3 size={20} />, roles: ['super_admin'] },
     { name: 'Announcements', path: '/admin/announcements', icon: <Megaphone size={20} />, roles: ['super_admin'] },
     { name: 'Roles', path: '/admin/roles', icon: <Shield size={20} />, roles: ['super_admin'] },
     { name: 'Coach Monitor', path: '/admin/coach', icon: <Bot size={20} />, roles: ['super_admin'] },

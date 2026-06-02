@@ -25,6 +25,7 @@ import { AgentLogs } from './pages/admin/AgentLogs';
 import { CoachStudio } from './pages/admin/CoachStudio';
 import { SystemSettings } from './pages/admin/SystemSettings';
 import { AnnouncementsManager } from './pages/admin/AnnouncementsManager';
+import { LiveCourseStats } from './pages/admin/LiveCourseStats';
 
 function App() {
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
@@ -80,6 +81,11 @@ function App() {
             <Route path="system" element={
               <ProtectedAdminRoute allowedRoles={['super_admin']}>
                 <SystemSettings />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="live-stats" element={
+              <ProtectedAdminRoute allowedRoles={['super_admin']}>
+                <LiveCourseStats />
               </ProtectedAdminRoute>
             } />
           </Route>
