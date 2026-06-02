@@ -302,23 +302,47 @@ def send_message(msg_in: CoachMessageCreate, db: Session = Depends(get_db)):
         else:
             last_active_str = f"{last_active_days_ago} days ago"
 
-    # Nearest assignment/quiz deadline within 7 days from Reminder model
+    # Nearest assignment/quiz deadline within 7 days from Reminder model and LMSDataCache
     upcoming_deadline_str = "none soon"
     from app.db.models.reminders import Reminder
     if convo and user:
         today_date = date.today()
         end_date = today_date + timedelta(days=7)
+        
+        upcoming_deadlines = []
+        
+        # 1. Check user reminders
         deadlines = db.query(Reminder).filter(
             Reminder.user_id == user.id,
             Reminder.status == "active",
             Reminder.date >= today_date,
             Reminder.date <= end_date
         ).all()
-        if deadlines:
-            deadlines = sorted(deadlines, key=lambda r: r.date)
-            closest = deadlines[0]
-            days_away = (closest.date - today_date).days
-            upcoming_deadline_str = f"{closest.title} in {days_away} days"
+        for r in deadlines:
+            days_away = (r.date - today_date).days
+            upcoming_deadlines.append((days_away, f"{r.title} in {days_away} days"))
+            
+        # 2. Check LMS pending assessments
+        for entry in cache_entries:
+            d = entry.data
+            course_name = d.get("course_name", d.get("name", "Course"))
+            assessments = d.get("assessments", [])
+            for ass in assessments:
+                if not ass.get("graded", False):
+                    due_date_str = ass.get("due_date") or ass.get("timestamp")
+                    if due_date_str:
+                        try:
+                            due_dt = datetime.fromisoformat(due_date_str.replace('Z', '+00:00')).replace(tzinfo=None)
+                            due_date = due_dt.date()
+                            if today_date <= due_date <= end_date:
+                                days_away = (due_date - today_date).days
+                                upcoming_deadlines.append((days_away, f"{ass.get('assessment_name')} ({course_name}) in {days_away} days"))
+                        except Exception:
+                            pass
+                            
+        if upcoming_deadlines:
+            upcoming_deadlines.sort(key=lambda x: x[0])
+            upcoming_deadline_str = upcoming_deadlines[0][1]
 
     # Courses and Progress listing
     courses_progress_lines = []

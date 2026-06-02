@@ -250,6 +250,18 @@ class OpenEdxClient:
                             "max_score": 100.0,
                             "graded": True,
                             "timestamp": (now - timedelta(days=5)).isoformat() + "Z"
+                        },
+                        {
+                            "assessment_name": "Quiz 3: FinTech Regulations",
+                            "max_score": 100.0,
+                            "graded": False,
+                            "timestamp": (now - timedelta(days=2)).isoformat() + "Z"
+                        },
+                        {
+                            "assessment_name": "Quiz 4: Tokenomics",
+                            "max_score": 100.0,
+                            "graded": False,
+                            "timestamp": (now + timedelta(days=1)).isoformat() + "Z"
                         }
                     ]
                 }
@@ -289,6 +301,18 @@ class OpenEdxClient:
                             "max_score": 100.0,
                             "graded": True,
                             "timestamp": (now - timedelta(days=4)).isoformat() + "Z"
+                        },
+                        {
+                            "assessment_name": "Quiz 2: Financial Planning",
+                            "max_score": 100.0,
+                            "graded": False,
+                            "timestamp": now.isoformat() + "Z"
+                        },
+                        {
+                            "assessment_name": "Final Exam: Business Management",
+                            "max_score": 100.0,
+                            "graded": False,
+                            "timestamp": (now + timedelta(days=5)).isoformat() + "Z"
                         }
                     ]
                 }
@@ -335,6 +359,12 @@ class OpenEdxClient:
                             "max_score": 100.0,
                             "graded": True,
                             "timestamp": (now - timedelta(days=3)).isoformat() + "Z"
+                        },
+                        {
+                            "assessment_name": "Capstone: AI Model Deployment",
+                            "max_score": 100.0,
+                            "graded": False,
+                            "timestamp": (now + timedelta(days=4)).isoformat() + "Z"
                         }
                     ]
                 }
@@ -374,6 +404,18 @@ class OpenEdxClient:
                             "max_score": 100.0,
                             "graded": True,
                             "timestamp": (now - timedelta(days=8)).isoformat() + "Z"
+                        },
+                        {
+                            "assessment_name": "Quiz 2: Classification Trees",
+                            "max_score": 100.0,
+                            "graded": False,
+                            "timestamp": (now - timedelta(days=1)).isoformat() + "Z"
+                        },
+                        {
+                            "assessment_name": "Final Exam: Analytics",
+                            "max_score": 100.0,
+                            "graded": False,
+                            "timestamp": (now + timedelta(days=1)).isoformat() + "Z"
                         }
                     ]
                 }
@@ -415,6 +457,12 @@ class OpenEdxClient:
                                 "max_score": 100.0,
                                 "graded": True,
                                 "timestamp": (now - timedelta(days=8)).isoformat() + "Z"
+                            },
+                            {
+                                "assessment_name": "Milestone 2: Data Cleaning",
+                                "max_score": 100.0,
+                                "graded": False,
+                                "timestamp": (now + timedelta(days=6)).isoformat() + "Z"
                             }
                         ]
                     }

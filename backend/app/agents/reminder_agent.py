@@ -54,6 +54,57 @@ class ReminderSuggestionAgent(BaseWatcher):
                             should_speak=False, # We don't speak, we just create a suggestion
                             reasoning="Created reminder suggestion for lagging goal."
                         )
+                        
+        # Check pending assessments due within next 3 days
+        from app.db.models.lms_data_cache import LMSDataCache
+        
+        cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == user_id).all()
+        for entry in cache_entries:
+            d = entry.data
+            course_name = d.get("course_name", d.get("name", "Course"))
+            course_id = d.get("course_id")
+            assessments = d.get("assessments", [])
+            for ass in assessments:
+                if not ass.get("graded", False):
+                    due_date_str = ass.get("due_date") or ass.get("timestamp")
+                    if not due_date_str:
+                        continue
+                    try:
+                        due_dt = datetime.datetime.fromisoformat(due_date_str.replace('Z', '+00:00')).replace(tzinfo=None)
+                        due_date = due_dt.date()
+                        
+                        days_left = (due_date - today).days
+                        if 0 <= days_left <= 3:
+                            title = f"Study for {ass.get('assessment_name')}"
+                            existing = db.query(ReminderSuggestion).filter(
+                                ReminderSuggestion.user_id == user_id,
+                                ReminderSuggestion.suggested_title == title,
+                                ReminderSuggestion.status == "pending"
+                            ).first()
+                            
+                            if not existing:
+                                # Suggest study session for tomorrow or today
+                                suggested_date = today + datetime.timedelta(days=1) if days_left > 1 else today
+                                suggestion = ReminderSuggestion(
+                                    user_id=user_id,
+                                    suggested_title=title,
+                                    suggested_type="study_session",
+                                    suggested_date=suggested_date,
+                                    suggested_time=datetime.time(18, 0),
+                                    suggested_course_id=course_id,
+                                    reasoning=f"Your assessment '{ass.get('assessment_name')}' in {course_name} is due in {days_left} days. A study session will help you prepare!"
+                                )
+                                db.add(suggestion)
+                                db.commit()
+                                
+                                return WatcherResult(
+                                    agent_name=self.name,
+                                    observation={"assessment_name": ass.get('assessment_name'), "course_id": course_id, "days_left": days_left},
+                                    should_speak=False,
+                                    reasoning=f"Created reminder suggestion for upcoming assessment: {ass.get('assessment_name')}."
+                                )
+                    except Exception:
+                        pass
         
         return WatcherResult(
             agent_name=self.name,

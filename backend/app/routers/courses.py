@@ -62,8 +62,69 @@ async def get_courses_list(current_user: User = Depends(get_current_user)):
     return await get_live_courses(current_user)
 
 @router.get("/upcoming-assignments")
-async def get_upcoming_assignments(current_user: User = Depends(get_current_user)):
-    return {"overdue": [], "today": [], "tomorrow": [], "this_week": []}
+async def get_upcoming_assignments(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.models.lms_data_cache import LMSDataCache
+    import uuid
+    
+    cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
+    
+    overdue = []
+    today = []
+    tomorrow = []
+    this_week = []
+    
+    now = datetime.utcnow()
+    today_date = now.date()
+    tomorrow_date = today_date + timedelta(days=1)
+    end_of_week = today_date + timedelta(days=7)
+    
+    for entry in cache_entries:
+        d = entry.data
+        course_name = d.get("course_name", d.get("name", "Course"))
+        assessments = d.get("assessments", [])
+        for ass in assessments:
+            if not ass.get("graded", False):
+                due_date_str = ass.get("due_date") or ass.get("timestamp")
+                if not due_date_str:
+                    continue
+                try:
+                    due_dt = datetime.fromisoformat(due_date_str.replace('Z', '+00:00')).replace(tzinfo=None)
+                    due_date = due_dt.date()
+                    
+                    days_left = (due_date - today_date).days
+                    
+                    item_id = ass.get("id") or str(uuid.uuid4())
+                    item_name = ass.get("assessment_name") or "Unnamed Assessment"
+                    
+                    item = {
+                        "id": item_id,
+                        "name": item_name,
+                        "course_name": course_name,
+                        "status": "",
+                        "due_date": due_date.isoformat()
+                    }
+                    
+                    if due_date < today_date:
+                        item["status"] = "Overdue"
+                        overdue.append(item)
+                    elif due_date == today_date:
+                        item["status"] = "Due Today"
+                        today.append(item)
+                    elif due_date == tomorrow_date:
+                        item["status"] = "Due Tomorrow"
+                        tomorrow.append(item)
+                    elif today_date < due_date <= end_of_week:
+                        item["status"] = f"Due in {days_left} days"
+                        this_week.append(item)
+                except Exception as e:
+                    logger.error(f"Error parsing due date {due_date_str}: {e}")
+                    
+    return {
+        "overdue": overdue,
+        "today": today,
+        "tomorrow": tomorrow,
+        "this_week": this_week
+    }
 
 @router.get("/overall-progress")
 async def get_overall_progress(current_user: User = Depends(get_current_user)):
