@@ -42,7 +42,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   fetchConversations: async () => {
     try {
-      const res = await fetchWithAuth('/coach/conversations');
+      const res = await fetchWithAuth('/api/coach/conversations');
       if (res.ok) {
         const data = await res.json();
         set({ conversations: data });
@@ -54,7 +54,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   createNewConversation: async () => {
     try {
-      const res = await fetchWithAuth('/coach/conversations', {
+      const res = await fetchWithAuth('/api/coach/conversations', {
         method: 'POST'
       });
       if (res.ok) {
@@ -93,7 +93,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-      const res = await fetchWithAuth('/coach/conversations');
+      const res = await fetchWithAuth('/api/coach/conversations');
       if (res.ok) {
         const data = await res.json();
         set({ conversations: data, initError: false });
@@ -113,7 +113,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   fetchMessages: async (cId: string) => {
     try {
-      const res = await fetchWithAuth(`/coach/messages?conversation_id=${cId}`);
+      const res = await fetchWithAuth(`/api/coach/messages?conversation_id=${cId}`);
       if (res.ok) {
         const data = await res.json();
         const mapped: CoachMessageProps[] = data.items.map((m: any) => ({
@@ -148,7 +148,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     });
 
     try {
-      const response = await fetchWithAuth('/coach/message', {
+      const response = await fetchWithAuth('/api/coach/message', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'

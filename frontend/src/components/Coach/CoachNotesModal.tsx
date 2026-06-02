@@ -14,7 +14,7 @@ export const CoachNotesModal: React.FC<CoachNotesModalProps> = ({ isOpen, onClos
 
   useEffect(() => {
     if (isOpen && !notes) {
-      fetchWithAuth('/coach/notes')
+      fetchWithAuth('/api/coach/notes')
         .then(res => res.json())
         .then(data => setNotes(data))
         .catch(console.error);
