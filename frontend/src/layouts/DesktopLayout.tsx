@@ -365,7 +365,7 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
               
               <div className="h-px w-full bg-border-light dark:bg-border-dark my-4"></div>
               
-              {(user?.role && ['support_staff', 'super_admin'].includes(user.role) || (user?.email && (user.email.toLowerCase() === 'vishal.reddy@iimbx.iimb.ac.in' || user.email.toLowerCase().includes('admin') || user.email.toLowerCase().includes('support')))) && (
+              {(user?.role && ['support_staff', 'super_admin'].includes(user.role) || (user?.email && (user.email.toLowerCase() === 'vishal.reddy@iimbx.iimb.ac.in' || user.email.toLowerCase() === 'iimbx.tools@iimbx.iimb.ac.in' || user.email.toLowerCase().includes('admin') || user.email.toLowerCase().includes('support')))) && (
                 <button 
                   onClick={() => navigate('/admin')} 
                   className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] w-full text-[#C9544D] hover:bg-[#C9544D]/10 hover:text-[#C9544D] transition-colors border border-transparent hover:border-[#C9544D]/20"

@@ -19,7 +19,7 @@ def startup_event():
         from app.database import SessionLocal
         from app.db.models.user import User
         db = SessionLocal()
-        emails_to_promote = ["lijin@gmail.com", "lijin.ns@iimbx.iimb.ac.in", "vishal.reddy@iimbx.iimb.ac.in"]
+        emails_to_promote = ["lijin@gmail.com", "lijin.ns@iimbx.iimb.ac.in", "vishal.reddy@iimbx.iimb.ac.in", "iimbx.tools@iimbx.iimb.ac.in"]
         for email in emails_to_promote:
             user = db.query(User).filter(User.email == email.strip().lower()).first()
             if user and user.role != "super_admin":

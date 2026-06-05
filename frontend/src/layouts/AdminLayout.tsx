@@ -17,6 +17,7 @@ export const AdminLayout: React.FC = () => {
   let role = user?.role || 'student';
   const isAdminByEmail = user?.email && (
     user.email.toLowerCase() === 'vishal.reddy@iimbx.iimb.ac.in' || 
+    user.email.toLowerCase() === 'iimbx.tools@iimbx.iimb.ac.in' || 
     user.email.toLowerCase().includes('admin') || 
     user.email.toLowerCase().includes('support')
   );

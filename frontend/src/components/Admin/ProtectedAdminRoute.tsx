@@ -20,6 +20,7 @@ export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({ childr
   // Temporary mock logic: If they are logged in as a student but their email is an admin email, grant access
   const isAdminByEmail = user?.email && (
     user.email.toLowerCase() === 'vishal.reddy@iimbx.iimb.ac.in' || 
+    user.email.toLowerCase() === 'iimbx.tools@iimbx.iimb.ac.in' || 
     user.email.toLowerCase().includes('admin') || 
     user.email.toLowerCase().includes('support')
   );

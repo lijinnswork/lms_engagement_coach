@@ -143,7 +143,7 @@ export const TabletLayout = ({ children }: TabletLayoutProps) => {
             )}
           </div>
         </button>
-        {(user?.role && ['support_staff', 'super_admin'].includes(user.role) || (user?.email && (user.email.toLowerCase() === 'vishal.reddy@iimbx.iimb.ac.in' || user.email.toLowerCase().includes('admin') || user.email.toLowerCase().includes('support')))) && (
+        {(user?.role && ['support_staff', 'super_admin'].includes(user.role) || (user?.email && (user.email.toLowerCase() === 'vishal.reddy@iimbx.iimb.ac.in' || user.email.toLowerCase() === 'iimbx.tools@iimbx.iimb.ac.in' || user.email.toLowerCase().includes('admin') || user.email.toLowerCase().includes('support')))) && (
           <button onClick={() => navigate('/admin')} className={getNavClass('/admin')}>
             <Shield size={20} />
           </button>

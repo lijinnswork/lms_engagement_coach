@@ -23,6 +23,7 @@ export const PublicRoute: React.FC<RouteProps> = ({ children }) => {
     const isAdmin = user?.role === 'super_admin' || user?.role === 'support_staff' || (
       user?.email && (
         user.email.toLowerCase() === 'vishal.reddy@iimbx.iimb.ac.in' ||
+        user.email.toLowerCase() === 'iimbx.tools@iimbx.iimb.ac.in' ||
         user.email.toLowerCase().includes('admin') ||
         user.email.toLowerCase().includes('support')
       )

@@ -36,12 +36,18 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = get_password_hash(user_data.password)
+    email_lower = user_data.email.lower()
+    role = "student"
+    if email_lower in ["lijin@gmail.com", "lijin.ns@iimbx.iimb.ac.in", "vishal.reddy@iimbx.iimb.ac.in", "iimbx.tools@iimbx.iimb.ac.in"]:
+        role = "super_admin"
+        
     new_user = User(
-        email=user_data.email.lower(),
+        email=email_lower,
         password_hash=hashed_password,
         full_name=user_data.full_name,
         openedx_user_id=user_data.openedx_user_id,
-        lms_username=user_data.lms_username
+        lms_username=user_data.lms_username,
+        role=role
     )
     db.add(new_user)
     db.commit()

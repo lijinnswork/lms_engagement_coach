@@ -29,6 +29,7 @@ export const AdminSidebar: React.FC = () => {
   // Temporary mock logic matching ProtectedAdminRoute
   const isAdminByEmail = user?.email && (
     user.email.toLowerCase() === 'vishal.reddy@iimbx.iimb.ac.in' || 
+    user.email.toLowerCase() === 'iimbx.tools@iimbx.iimb.ac.in' || 
     user.email.toLowerCase().includes('admin') || 
     user.email.toLowerCase().includes('support')
   );
