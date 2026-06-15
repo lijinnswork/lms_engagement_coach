@@ -13,6 +13,9 @@ import { StackedProgressBar } from '../components/dashboard/StackedProgressBar';
 import { CourseCardsTabs } from '../components/dashboard/CourseCardsTabs';
 import { useRemindersStore } from '../store/useRemindersStore';
 import { LearningRhythm } from '../components/dashboard/LearningRhythm';
+import { WavingHand } from '../components/Common/WavingHand';
+import { useNudgeStore } from '../store/nudgeStore';
+import { NotificationsPanel } from '../components/Notifications/NotificationsPanel';
 
 const containerVariants = {
   hidden: {},
@@ -35,6 +38,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
   const location = useLocation();
   const { user } = useAuthStore();
   const { pendingCount, fetchReminders } = useRemindersStore();
+  const { nudges, isPanelOpen, setPanelOpen, fetchNudges } = useNudgeStore();
   const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
 
   React.useEffect(() => {
@@ -78,7 +82,8 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
 
   React.useEffect(() => {
     fetchReminders();
-  }, [fetchReminders]);
+    fetchNudges();
+  }, [fetchReminders, fetchNudges]);
 
   const getNavClass = (path: string) => {
     const isActive = location.pathname === path;
@@ -98,9 +103,12 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
             <h1 className="font-serif text-[24px] text-text-primary dark:text-text-darkPri">
               {getGreeting()}, {(user?.full_name || 'Learner').split(' ')[0]}
             </h1>
-            <button onClick={() => navigate('/settings')} className="text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri transition-colors">
-              <Settings size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <WavingHand hasNudges={nudges.length > 0} onClick={() => setPanelOpen(true)} />
+              <button onClick={() => navigate('/settings')} className="text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri transition-colors p-1.5 rounded-full cursor-pointer">
+                <Settings size={20} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -171,6 +179,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
           <span className="text-[10px] font-sans font-medium">Reminders</span>
         </button>
       </div>
+      <NotificationsPanel isOpen={isPanelOpen} onClose={() => setPanelOpen(false)} />
     </div>
   );
 };

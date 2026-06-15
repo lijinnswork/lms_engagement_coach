@@ -57,6 +57,8 @@ export const Login: React.FC = () => {
 
       const dbUser = await profileRes.json();
 
+      localStorage.removeItem('manually_logged_out');
+
       login(
         { 
           id: dbUser.id, 

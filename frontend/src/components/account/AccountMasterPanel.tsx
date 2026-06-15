@@ -119,6 +119,7 @@ export const AccountMasterPanel = () => {
                       const handlePress = () => {
                         if (item.hasPanel) setActivePanel(item.id);
                         if (item.id === 'sign-out') {
+                          localStorage.setItem('manually_logged_out', 'true');
                           logout();
                           window.location.href = '/login';
                         }
@@ -155,6 +156,7 @@ export const AccountMasterPanel = () => {
                   const handlePress = () => {
                     if (item.hasPanel) setActivePanel(item.id);
                     if (item.id === 'sign-out') {
+                      localStorage.setItem('manually_logged_out', 'true');
                       logout();
                       window.location.href = '/login';
                     }

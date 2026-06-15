@@ -119,7 +119,9 @@ async def get_behavior(current_user: User = Depends(require_super_admin), db: Se
         "quiet_hours_end": get_config_val(db, "behavior.quiet_end", "08:00"),
         "match_energy": get_config_val(db, "behavior.match_energy", True),
         "soften_on_negative_mood": get_config_val(db, "behavior.soften_mood", True),
-        "use_first_name": get_config_val(db, "behavior.use_first_name", True)
+        "use_first_name": get_config_val(db, "behavior.use_first_name", True),
+        "run_interval": get_config_val(db, "behavior.run_interval", 4),
+        "lms_refresh_interval": get_config_val(db, "behavior.lms_refresh_interval", 2)
     }
 
 @router.patch("/behavior")
@@ -134,6 +136,8 @@ async def update_behavior(data: dict, current_user: User = Depends(require_super
         elif key == "match_energy": set_config_val(db, "behavior.match_energy", value, current_user.id)
         elif key == "soften_on_negative_mood": set_config_val(db, "behavior.soften_mood", value, current_user.id)
         elif key == "use_first_name": set_config_val(db, "behavior.use_first_name", value, current_user.id)
+        elif key == "run_interval": set_config_val(db, "behavior.run_interval", value, current_user.id)
+        elif key == "lms_refresh_interval": set_config_val(db, "behavior.lms_refresh_interval", value, current_user.id)
     return {"status": "success"}
 
 # ==========================================
@@ -247,12 +251,71 @@ async def delete_response(response_id: str, current_user: User = Depends(require
 # ==========================================
 @router.get("/watchers")
 async def get_watchers(current_user: User = Depends(require_super_admin), db: Session = Depends(get_db)):
-    return {
-        "engagement": get_config_val(db, "watcher.engagement", {"active": True, "inactivity_days": 4, "drop_threshold": 50, "course_inactive": 14}),
+    from app.db.models import AgentLog, AgentName
+    from sqlalchemy import func
+    
+    def get_watcher_stats(agent_name_str: str):
+        # Find exact agent name enum
+        name_key = agent_name_str + "_watcher"
+        try:
+            name_enum = AgentName[name_key]
+        except KeyError:
+            try:
+                name_enum = AgentName[agent_name_str]
+            except KeyError:
+                return {"last_trigger": "—", "messages_count": 0}
+                
+        last_log = db.query(AgentLog).filter(
+            AgentLog.agent_name == name_enum,
+            AgentLog.decision == "speak"
+        ).order_by(desc(AgentLog.created_at)).first()
+        
+        count = db.query(func.count(AgentLog.id)).filter(
+            AgentLog.agent_name == name_enum,
+            AgentLog.decision == "speak"
+        ).scalar() or 0
+        
+        last_trigger = "—"
+        if last_log and last_log.created_at:
+            diff = datetime.utcnow() - last_log.created_at.replace(tzinfo=None)
+            diff_mins = int(diff.total_seconds() / 60)
+            if diff_mins < 1:
+                last_trigger = "Just now"
+            elif diff_mins < 60:
+                last_trigger = f"{diff_mins}m ago"
+            elif diff_mins < 1440:
+                last_trigger = f"{diff_mins // 60}h ago"
+            else:
+                last_trigger = f"{diff_mins // 1440}d ago"
+                
+        return {"last_trigger": last_trigger, "messages_count": count}
 
-        "momentum": get_config_val(db, "watcher.momentum", {"active": True, "consistency_streak": 7, "improvement_threshold": 15}),
-        "goal_progress": get_config_val(db, "watcher.goal_progress", {"active": True, "behind_threshold": 50, "stale_days": 14}),
-        "curiosity": get_config_val(db, "watcher.curiosity", {"active": True, "topic_revisit": 3, "deep_engagement": 2.0, "min_data_weeks": 2})
+    eng_stats = get_watcher_stats("engagement")
+    mom_stats = get_watcher_stats("momentum")
+    goal_stats = get_watcher_stats("goal")
+    cur_stats = get_watcher_stats("curiosity")
+
+    return {
+        "engagement": {
+            **get_config_val(db, "watcher.engagement", {"active": True, "inactivity_days": 4, "drop_threshold": 50, "course_inactive": 14}),
+            "last_trigger": eng_stats["last_trigger"],
+            "messages_count": eng_stats["messages_count"]
+        },
+        "momentum": {
+            **get_config_val(db, "watcher.momentum", {"active": True, "consistency_streak": 7, "improvement_threshold": 15}),
+            "last_trigger": mom_stats["last_trigger"],
+            "messages_count": mom_stats["messages_count"]
+        },
+        "goal_progress": {
+            **get_config_val(db, "watcher.goal_progress", {"active": True, "behind_threshold": 50, "stale_days": 14}),
+            "last_trigger": goal_stats["last_trigger"],
+            "messages_count": goal_stats["messages_count"]
+        },
+        "curiosity": {
+            **get_config_val(db, "watcher.curiosity", {"active": True, "topic_revisit": 3, "deep_engagement": 2.0, "min_data_weeks": 2}),
+            "last_trigger": cur_stats["last_trigger"],
+            "messages_count": cur_stats["messages_count"]
+        }
     }
 
 @router.patch("/watchers/{agent_name}")

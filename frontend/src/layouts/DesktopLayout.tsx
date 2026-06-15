@@ -18,6 +18,9 @@ import { useRemindersStore } from '../store/useRemindersStore';
 import { SettingsMasterPanel } from '../components/settings/SettingsMasterPanel';
 import { AccountMasterPanel } from '../components/account/AccountMasterPanel';
 import { LearningRhythm } from '../components/dashboard/LearningRhythm';
+import { WavingHand } from '../components/Common/WavingHand';
+import { useNudgeStore } from '../store/nudgeStore';
+import { NotificationsPanel } from '../components/Notifications/NotificationsPanel';
 
 interface ConversationSidebarItemProps {
   conversation: any;
@@ -123,6 +126,7 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
   const { pendingCount, fetchReminders } = useRemindersStore();
   const { user } = useAuthStore();
   const { conversations, createNewConversation, switchConversation, conversationId, fetchConversations, renameConversation } = useCoachStore();
+  const { nudges, isPanelOpen, setPanelOpen, fetchNudges } = useNudgeStore();
   const [coachDropdownOpen, setCoachDropdownOpen] = React.useState(false);
   const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
 
@@ -160,11 +164,12 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
 
   React.useEffect(() => {
     fetchReminders();
+    fetchNudges();
     if (location.pathname === '/coach') {
       fetchConversations();
       setCoachDropdownOpen(true);
     }
-  }, [fetchReminders, location.pathname, fetchConversations]);
+  }, [fetchReminders, fetchNudges, location.pathname, fetchConversations]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -270,17 +275,18 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
               {getGreeting()}, {(user?.full_name || 'Learner').split(' ')[0]}
             </h1>
             <div className="flex items-center gap-3 pr-4">
+              <WavingHand hasNudges={nudges.length > 0} onClick={() => setPanelOpen(true)} />
               <button 
                 onClick={() => setSettingsOpen(true)}
                 title="Settings"
-                className={`text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri transition-colors p-2 rounded-full ${isSettingsOpen ? 'bg-black/5 dark:bg-white/5' : ''}`}
+                className={`text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri transition-colors p-2 rounded-full cursor-pointer ${isSettingsOpen ? 'bg-black/5 dark:bg-white/5' : ''}`}
               >
                 <Settings size={22} />
               </button>
               <button 
                 onClick={() => setAccountOpen(true)}
                 title="Account"
-                className={`w-8 h-8 rounded-full border-2 transition-colors flex items-center justify-center overflow-hidden bg-gradient-to-br from-accent-sage to-accent-peach text-white font-medium text-[14px] ${isAccountOpen ? 'border-accent-sage' : 'border-border-light dark:border-border-dark hover:border-accent-sage'}`}
+                className={`w-8 h-8 rounded-full border-2 transition-colors flex items-center justify-center overflow-hidden bg-gradient-to-br from-accent-sage to-accent-peach text-white font-medium text-[14px] cursor-pointer ${isAccountOpen ? 'border-accent-sage' : 'border-border-light dark:border-border-dark hover:border-accent-sage'}`}
               >
                 {user?.avatar_url ? (
                   <img src={user.avatar_url} alt="User Avatar" className="w-full h-full object-cover" />
@@ -439,6 +445,7 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
         </div>
         
       </div>
+      <NotificationsPanel isOpen={isPanelOpen} onClose={() => setPanelOpen(false)} />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Learner Engagement App"
+    PROJECT_NAME: str = "Student Dashboard App"
     DATABASE_URL: str = "sqlite:///./test.db"
     SECRET_KEY: str = "supersecretkey_please_change_in_production"
     ALGORITHM: str = "HS256"

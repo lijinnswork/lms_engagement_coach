@@ -50,10 +50,10 @@ export const AgentControls: React.FC = () => {
       if (watchersRes.ok) {
         const d = await watchersRes.json();
         const mapped = [
-          { name: 'engagement', label: 'Engagement', enabled: d.engagement?.active ?? true, lastTrigger: '4h ago', messages: 45, status: d.engagement?.active ? 'Active' : 'Disabled' },
-          { name: 'momentum', label: 'Momentum', enabled: d.momentum?.active ?? true, lastTrigger: '2h ago', messages: 67, status: d.momentum?.active ? 'Active' : 'Disabled' },
-          { name: 'goal_progress', label: 'Goal Progress', enabled: d.goal_progress?.active ?? true, lastTrigger: '—', messages: 12, status: d.goal_progress?.active ? 'Active' : 'Disabled' },
-          { name: 'curiosity', label: 'Curiosity', enabled: d.curiosity?.active ?? true, lastTrigger: '8h ago', messages: 32, status: d.curiosity?.active ? 'Active' : 'Disabled' }
+          { name: 'engagement', label: 'Engagement', enabled: d.engagement?.active ?? true, lastTrigger: d.engagement?.last_trigger ?? '—', messages: d.engagement?.messages_count ?? 0, status: d.engagement?.active ? 'Active' : 'Disabled' },
+          { name: 'momentum', label: 'Momentum', enabled: d.momentum?.active ?? true, lastTrigger: d.momentum?.last_trigger ?? '—', messages: d.momentum?.messages_count ?? 0, status: d.momentum?.active ? 'Active' : 'Disabled' },
+          { name: 'goal_progress', label: 'Goal Progress', enabled: d.goal_progress?.active ?? true, lastTrigger: d.goal_progress?.last_trigger ?? '—', messages: d.goal_progress?.messages_count ?? 0, status: d.goal_progress?.active ? 'Active' : 'Disabled' },
+          { name: 'curiosity', label: 'Curiosity', enabled: d.curiosity?.active ?? true, lastTrigger: d.curiosity?.last_trigger ?? '—', messages: d.curiosity?.messages_count ?? 0, status: d.curiosity?.active ? 'Active' : 'Disabled' }
         ];
         setAgents(mapped);
       }
@@ -230,11 +230,11 @@ export const AgentControls: React.FC = () => {
                </div>
                <div>
                   <span className="text-sm text-gray-400 block mb-1">Last run</span>
-                  <span className="text-gray-200 font-medium">{schedulerStatus?.last_run ?? '45 min ago'}</span>
+                  <span className="text-gray-200 font-medium">{schedulerStatus?.last_run ?? '—'}</span>
                </div>
                <div>
                   <span className="text-sm text-gray-400 block mb-1">Next run</span>
-                  <span className="text-gray-200 font-medium">{schedulerStatus?.next_run ?? 'in 3h 15min'}</span>
+                  <span className="text-gray-200 font-medium">{schedulerStatus?.next_run ?? '—'}</span>
                </div>
                <div>
                   <span className="text-sm text-gray-400 block mb-1">Cycle</span>
@@ -245,11 +245,11 @@ export const AgentControls: React.FC = () => {
             <div className="bg-[#1C2128] rounded p-3 mb-6 flex justify-around text-sm">
                <div className="text-center">
                  <p className="text-gray-400">Users processed</p>
-                 <p className="text-white font-bold">{schedulerStatus?.users_processed ?? 247}</p>
+                 <p className="text-white font-bold">{schedulerStatus?.users_processed ?? 0}</p>
                </div>
                <div className="text-center">
                  <p className="text-gray-400">Messages sent</p>
-                 <p className="text-white font-bold">{schedulerStatus?.messages_sent ?? 8}</p>
+                 <p className="text-white font-bold">{schedulerStatus?.messages_sent ?? 0}</p>
                </div>
                <div className="text-center">
                  <p className="text-gray-400">Errors</p>
@@ -337,14 +337,14 @@ export const AgentControls: React.FC = () => {
                     </div>
                   )}
                </div>
-               <div>
-                  <span className="text-sm text-gray-400 block mb-1">Avg response time</span>
-                  <span className="text-gray-200">{geminiStatus?.response_time ?? '2.3s'}</span>
-               </div>
-               <div>
-                  <span className="text-sm text-gray-400 block mb-1">Tokens today</span>
-                  <span className="text-gray-200">{geminiStatus?.tokens_today ?? '12,450'} <span className="text-gray-500 text-xs">(estimated)</span></span>
-               </div>
+                <div>
+                   <span className="text-sm text-gray-400 block mb-1">Avg response time</span>
+                   <span className="text-gray-200">{geminiStatus?.response_time ?? '—'}</span>
+                </div>
+                <div>
+                   <span className="text-sm text-gray-400 block mb-1">Tokens today</span>
+                   <span className="text-gray-200">{geminiStatus?.tokens_today ? `${geminiStatus.tokens_today} (estimated)` : '—'}</span>
+                </div>
              </div>
 
              <div className="bg-[#1C2128] border border-[#3A3F4D] rounded-lg p-4">
@@ -398,18 +398,18 @@ export const AgentControls: React.FC = () => {
           {/* Decision Engine */}
           <div className="bg-[#242834] border border-[#3A3F4D] rounded-xl p-5">
              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Decision Engine Stats (24h)</h3>
-             <ul className="text-sm text-gray-300 space-y-2">
-                <li>• {decisionStats?.users_evaluated ?? 247} users evaluated</li>
-                <li>• {decisionStats?.stayed_silent ?? 198} stayed silent (no triggers)</li>
-                <li>• {decisionStats?.blocked ?? 31} had triggers but blocked by constraints</li>
-                <ul className="pl-6 text-gray-500 space-y-1 mt-1 text-xs list-disc font-sans">
-                   <li>{decisionStats?.blocked_limit ?? 12} blocked by weekly limit</li>
-                   <li>{decisionStats?.blocked_quiet ?? 8} blocked by quiet hours</li>
-                   <li>{decisionStats?.blocked_gap ?? 7} blocked by 24h min gap</li>
-                   <li>{decisionStats?.blocked_overwhelmed ?? 4} blocked by overwhelmed pause</li>
-                </ul>
-                <li className="pt-1 text-[#B4C7B8]">• {decisionStats?.messages_sent ?? 18} messages sent</li>
-             </ul>
+              <ul className="text-sm text-gray-300 space-y-2">
+                 <li>• {decisionStats?.users_evaluated ?? 0} users evaluated</li>
+                 <li>• {decisionStats?.stayed_silent ?? 0} stayed silent (no triggers)</li>
+                 <li>• {decisionStats?.blocked ?? 0} had triggers but blocked by constraints</li>
+                 <ul className="pl-6 text-gray-500 space-y-1 mt-1 text-xs list-disc font-sans">
+                    <li>{decisionStats?.blocked_limit ?? 0} blocked by weekly limit</li>
+                    <li>{decisionStats?.blocked_quiet ?? 0} blocked by quiet hours</li>
+                    <li>{decisionStats?.blocked_gap ?? 0} blocked by 24h min gap</li>
+                    <li>{decisionStats?.blocked_overwhelmed ?? 0} blocked by overwhelmed pause</li>
+                 </ul>
+                 <li className="pt-1 text-[#B4C7B8]">• {decisionStats?.messages_sent ?? 0} messages sent</li>
+              </ul>
           </div>
 
         </div>

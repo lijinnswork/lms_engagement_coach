@@ -7,7 +7,7 @@ import logging
 
 from app.agents import (
     EngagementWatcher, MomentumWatcher, GoalProgressWatcher, CuriosityWatcher,
-    DecisionEngine, MessageBuilder, MessageValidator, DeliveryService
+    DecisionEngine, MessageBuilder, MessageValidator, DeliveryService, ProgressRangeWatcher
 )
 from app.agents.reminder_agent import ReminderSuggestionAgent
 from app.services.gemini_client import gemini_client
@@ -45,6 +45,9 @@ async def run_watcher_agents():
                 
                 reminder_agent = ReminderSuggestionAgent()
                 results.append(await reminder_agent.observe(user.id, db))
+
+                progress_range_watcher = ProgressRangeWatcher()
+                results.append(await progress_range_watcher.observe(user.id, db))
                 
                 for r in results:
                     log = AgentLog(

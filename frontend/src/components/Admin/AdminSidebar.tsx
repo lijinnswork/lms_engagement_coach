@@ -14,7 +14,8 @@ import {
   Lock,
   Shield,
   Sliders,
-  Megaphone
+  Megaphone,
+  Bell
 } from 'lucide-react';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 
@@ -50,6 +51,7 @@ export const AdminSidebar: React.FC = () => {
     { name: 'Announcements', path: '/admin/announcements', icon: <Megaphone size={20} />, roles: ['super_admin'] },
     { name: 'Roles', path: '/admin/roles', icon: <Shield size={20} />, roles: ['super_admin'] },
     { name: 'Coach Monitor', path: '/admin/coach', icon: <Bot size={20} />, roles: ['super_admin'] },
+    { name: 'Nudge Settings', path: '/admin/nudge-settings', icon: <Bell size={20} />, roles: ['support_staff', 'super_admin'] },
     { name: 'Agent Controls', path: '/admin/agents', icon: <Settings2 size={20} />, roles: ['super_admin'] },
     { name: 'Coach Studio', path: '/admin/coach-studio', icon: <Sliders size={20} />, roles: ['super_admin'] },
     { name: 'Agent Logs', path: '/admin/logs', icon: <ListOrdered size={20} />, roles: ['super_admin'] },

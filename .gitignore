@@ -26,3 +26,6 @@ merged_coach.txt
 
 # Local Netlify folder
 .netlify
+
+# Zip archives
+*.zip

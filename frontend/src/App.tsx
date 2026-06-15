@@ -26,6 +26,7 @@ import { CoachStudio } from './pages/admin/CoachStudio';
 import { SystemSettings } from './pages/admin/SystemSettings';
 import { AnnouncementsManager } from './pages/admin/AnnouncementsManager';
 import { LiveCourseStats } from './pages/admin/LiveCourseStats';
+import { NudgeSettings } from './pages/admin/NudgeSettings';
 
 import { useAuthStore } from './stores/authStore';
 
@@ -36,6 +37,9 @@ function App() {
   React.useEffect(() => {
     const autoLogin = async () => {
       if (!user && import.meta.env.DEV) {
+        if (localStorage.getItem('manually_logged_out') === 'true') {
+          return;
+        }
         try {
           const res = await fetch('/api/auth/dev-login');
           if (res.ok) {
@@ -72,6 +76,11 @@ function App() {
             <Route path="roles" element={
               <ProtectedAdminRoute allowedRoles={['super_admin']}>
                 <RoleManagement />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="nudge-settings" element={
+              <ProtectedAdminRoute allowedRoles={['support_staff', 'super_admin']}>
+                <NudgeSettings />
               </ProtectedAdminRoute>
             } />
             <Route path="coach" element={

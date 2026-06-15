@@ -500,7 +500,7 @@ class OpenEdxClient:
 
         logger.info(f"LMS Direct Fetch: Starting for user {username}")
 
-        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=30.0) as client:
+        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=3.0) as client:
             # Step A: Get initial cookies from root
             await client.get(f"{lms_url}/")
             

@@ -71,7 +71,7 @@ export const AdminLayout: React.FC = () => {
         <header className="h-[60px] border-b border-[#1C2128] border-t-2 border-t-[#C9544D] bg-[#0D1117] flex items-center justify-between px-6 shrink-0 shadow-sm z-10 hidden md:flex">
            <div className="flex items-center gap-2">
              <Lock size={16} className="text-[#C9544D]" />
-             <h1 className="font-semibold text-gray-200">Admin · Learner Engagement App</h1>
+             <h1 className="font-semibold text-gray-200">Admin · Student Dashboard App</h1>
            </div>
            
            <div className="flex items-center gap-3">

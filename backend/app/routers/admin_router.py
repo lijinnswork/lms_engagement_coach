@@ -526,6 +526,113 @@ async def toggle_agent(agent_name: str, current_user: User = Depends(require_sup
 async def check_gemini(current_user: User = Depends(require_super_admin)):
     return {"status": "Connected"}
 
+@router.get("/agents/settings")
+async def get_agent_settings(current_user: User = Depends(require_super_admin), db: Session = Depends(get_db)):
+    from app.db.models.coach_studio import CoachConfig
+    import json
+    def get_config_val_local(key: str, default: any = None):
+        conf = db.query(CoachConfig).filter(CoachConfig.config_key == key).first()
+        if conf:
+            try:
+                return json.loads(conf.config_value)
+            except json.JSONDecodeError:
+                return conf.config_value
+        return default
+        
+    return {
+        "run_interval": get_config_val_local("behavior.run_interval", 4),
+        "lms_refresh_interval": get_config_val_local("behavior.lms_refresh_interval", 2),
+        "default_max_messages": get_config_val_local("behavior.nudge_frequency", 3),
+        "min_gap": get_config_val_local("behavior.min_gap", 24)
+    }
+
+@router.patch("/agents/settings")
+async def update_agent_settings(data: dict, current_user: User = Depends(require_super_admin), db: Session = Depends(get_db)):
+    from app.db.models.coach_studio import CoachConfig
+    import json
+    def set_config_val_local(key: str, value: any, user_id: str):
+        conf = db.query(CoachConfig).filter(CoachConfig.config_key == key).first()
+        val_str = json.dumps(value) if not isinstance(value, str) else value
+        if conf:
+            conf.config_value = val_str
+            conf.updated_by = user_id
+        else:
+            conf = CoachConfig(config_key=key, config_value=val_str, updated_by=user_id)
+            db.add(conf)
+        db.commit()
+
+    if "run_interval" in data:
+        set_config_val_local("behavior.run_interval", data["run_interval"], current_user.id)
+    if "lms_refresh_interval" in data:
+        set_config_val_local("behavior.lms_refresh_interval", data["lms_refresh_interval"], current_user.id)
+    if "default_max_messages" in data:
+        set_config_val_local("behavior.nudge_frequency", data["default_max_messages"], current_user.id)
+    if "min_gap" in data:
+        set_config_val_local("behavior.min_gap", data["min_gap"], current_user.id)
+        
+    return {"status": "success"}
+
+@router.get("/agents/decision-stats")
+async def get_agent_decision_stats(period: str = '24h', current_user: User = Depends(require_super_admin), db: Session = Depends(get_db)):
+    now = datetime.utcnow()
+    since = now - timedelta(hours=24)
+    
+    # 1. Unique users evaluated
+    users_evaluated = db.query(func.count(distinct(AgentLog.user_id))).filter(
+        AgentLog.created_at >= since
+    ).scalar() or 0
+    
+    # 2. Stayed silent (no watchers recommended speaking)
+    stayed_silent = db.query(func.count(AgentLog.id)).filter(
+        AgentLog.created_at >= since,
+        AgentLog.decision == "stay_silent",
+        AgentLog.reasoning.like("%No watchers%")
+    ).scalar() or 0
+    
+    # 3. Blocked counts
+    blocked_limit = db.query(func.count(AgentLog.id)).filter(
+        AgentLog.created_at >= since,
+        AgentLog.decision == "stay_silent",
+        AgentLog.reasoning.like("%Weekly limit%")
+    ).scalar() or 0
+    
+    blocked_quiet = db.query(func.count(AgentLog.id)).filter(
+        AgentLog.created_at >= since,
+        AgentLog.decision == "stay_silent",
+        AgentLog.reasoning.like("%Quiet hours%")
+    ).scalar() or 0
+    
+    blocked_gap = db.query(func.count(AgentLog.id)).filter(
+        AgentLog.created_at >= since,
+        AgentLog.decision == "wait",
+        AgentLog.reasoning.like("%since last message%")
+    ).scalar() or 0
+    
+    blocked_overwhelmed = db.query(func.count(AgentLog.id)).filter(
+        AgentLog.created_at >= since,
+        AgentLog.decision == "wait",
+        AgentLog.reasoning.like("%cooldown%")
+    ).scalar() or 0
+    
+    blocked = blocked_limit + blocked_quiet + blocked_gap + blocked_overwhelmed
+    
+    # 4. Messages sent (speak decisions)
+    messages_sent = db.query(func.count(AgentLog.id)).filter(
+        AgentLog.created_at >= since,
+        AgentLog.decision == "speak"
+    ).scalar() or 0
+    
+    return {
+        "users_evaluated": users_evaluated,
+        "stayed_silent": stayed_silent,
+        "blocked": blocked,
+        "blocked_limit": blocked_limit,
+        "blocked_quiet": blocked_quiet,
+        "blocked_gap": blocked_gap,
+        "blocked_overwhelmed": blocked_overwhelmed,
+        "messages_sent": messages_sent
+    }
+
 @router.get("/agents/system-prompt")
 async def get_prompt(current_user: User = Depends(require_super_admin)):
     return {"prompt": "You are an AI coach..."}

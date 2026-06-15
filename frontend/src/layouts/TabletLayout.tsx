@@ -14,6 +14,9 @@ import { useDashboardStore } from '../store/dashboardStore';
 import { useRemindersStore } from '../store/useRemindersStore';
 import { SettingsMasterPanel } from '../components/settings/SettingsMasterPanel';
 import { LearningRhythm } from '../components/dashboard/LearningRhythm';
+import { WavingHand } from '../components/Common/WavingHand';
+import { useNudgeStore } from '../store/nudgeStore';
+import { NotificationsPanel } from '../components/Notifications/NotificationsPanel';
 
 const containerVariants = {
   hidden: {},
@@ -37,6 +40,7 @@ export const TabletLayout = ({ children }: TabletLayoutProps) => {
   const { user } = useAuthStore();
   const { isSettingsOpen, setSettingsOpen, sidebarVisible } = useDashboardStore();
   const { pendingCount, fetchReminders } = useRemindersStore();
+  const { nudges, isPanelOpen, setPanelOpen, fetchNudges } = useNudgeStore();
   const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
 
   React.useEffect(() => {
@@ -80,7 +84,8 @@ export const TabletLayout = ({ children }: TabletLayoutProps) => {
 
   React.useEffect(() => {
     fetchReminders();
-  }, [fetchReminders]);
+    fetchNudges();
+  }, [fetchReminders, fetchNudges]);
 
   const getNavClass = (path: string) => {
     const isActive = location.pathname === path;
@@ -158,12 +163,15 @@ export const TabletLayout = ({ children }: TabletLayoutProps) => {
             <h1 className="font-serif text-[28px] text-text-primary dark:text-text-darkPri">
               {getGreeting()}, {(user?.full_name || 'Learner').split(' ')[0]}
             </h1>
-            <button 
-              onClick={() => setSettingsOpen(true)}
-              className="text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri transition-colors"
-            >
-              <Settings size={22} />
-            </button>
+            <div className="flex items-center gap-3">
+              <WavingHand hasNudges={nudges.length > 0} onClick={() => setPanelOpen(true)} />
+              <button 
+                onClick={() => setSettingsOpen(true)}
+                className="text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri transition-colors p-2 rounded-full cursor-pointer"
+              >
+                <Settings size={22} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -208,6 +216,7 @@ export const TabletLayout = ({ children }: TabletLayoutProps) => {
           </motion.div>
         )}
       </div>
+      <NotificationsPanel isOpen={isPanelOpen} onClose={() => setPanelOpen(false)} />
     </div>
   );
 };

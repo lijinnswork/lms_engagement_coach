@@ -27,7 +27,7 @@ export const DeleteAccountPanel = ({ onClose }: { onClose: () => void }) => {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
         {step !== 'done' ? (
           <p className="text-[13px] text-text-secondary dark:text-text-darkSec leading-[1.7]">
-            This will permanently close your Learner Engagement App account and erase all associated data. You will no longer be able to log in, and the coach will be permanently disabled. This action does not impact your connected LMS account progress.
+            This will permanently close your Student Dashboard App account and erase all associated data. You will no longer be able to log in, and the coach will be permanently disabled. This action does not impact your connected LMS account progress.
           </p>
         ) : (
           <div className="flex flex-col items-center justify-center pt-12 text-center text-accent-sage">

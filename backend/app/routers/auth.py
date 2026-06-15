@@ -100,8 +100,11 @@ def login(
 @router.get("/dev-login")
 def dev_login(request: Request, db: Session = Depends(get_db)):
     """Auto-login endpoint for development mode only"""
-    email = "admin@iimbx.iimb.ac.in"
+    email = "vishal.reddy@iimbx.iimb.ac.in"
     user = db.query(User).filter(User.email == email).first()
+    if not user:
+        email = "admin@iimbx.iimb.ac.in"
+        user = db.query(User).filter(User.email == email).first()
     
     if not user:
         # Create a mock admin user

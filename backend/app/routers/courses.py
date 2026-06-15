@@ -54,6 +54,17 @@ async def get_live_courses(current_user: User):
         return await openedx_client.get_user_courses_direct(current_user.lms_username)
     except Exception as e:
         logger.error(f"Failed to fetch live courses for {current_user.lms_username}: {e}")
+        try:
+            from app.database import SessionLocal
+            from app.db.models.lms_data_cache import LMSDataCache
+            db = SessionLocal()
+            cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
+            db.close()
+            if cache_entries:
+                logger.info(f"get_live_courses fallback: Loaded {len(cache_entries)} courses from cache")
+                return [entry.data for entry in cache_entries]
+        except Exception as db_err:
+            logger.error(f"Failed to fetch cached courses: {db_err}")
         return []
 
 @router.get("")

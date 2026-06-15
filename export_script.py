@@ -25,7 +25,7 @@ def get_files():
     return sorted(files_to_export)
 
 with open(OUTPUT_FILE, "w") as out:
-    out.write("# Learner Engagement App Full Codebase\n\n")
+    out.write("# Student Dashboard App Full Codebase\n\n")
     out.write("This file contains the entire copy-pastable codebase for the application, organized by file.\n\n")
     
     for fpath in get_files():

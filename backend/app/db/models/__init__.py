@@ -8,6 +8,7 @@ from .coach_studio import CoachConfig, CoachPromptVersion, PredefinedResponse
 from .announcement import Announcement, AnnouncementDismissal
 from .user_session import UserSession
 from .daily_activity import DailyActivity
+from .nudge import NudgeRangeConfig, PendingNudge, NudgeRangeHistory, NudgeGlobalSettings
 
 __all__ = [
     "Role", "User", "UserRole", "NotificationPreference",
@@ -19,5 +20,6 @@ __all__ = [
     "CoachConfig", "CoachPromptVersion", "PredefinedResponse",
     "Announcement", "AnnouncementDismissal",
     "UserSession",
-    "DailyActivity"
+    "DailyActivity",
+    "NudgeRangeConfig", "PendingNudge", "NudgeRangeHistory", "NudgeGlobalSettings"
 ]
