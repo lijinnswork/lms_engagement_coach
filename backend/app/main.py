@@ -18,6 +18,8 @@ def startup_event():
     try:
         from app.database import SessionLocal
         from app.db.models.user import User
+        from app.services.auth_service import get_password_hash
+        import uuid
         db = SessionLocal()
         emails_to_promote = ["lijin@gmail.com", "lijin.ns@iimbx.iimb.ac.in", "vishal.reddy@iimbx.iimb.ac.in", "iimbx.tools@iimbx.iimb.ac.in"]
         for email in emails_to_promote:
@@ -26,9 +28,24 @@ def startup_event():
                 user.role = "super_admin"
                 db.commit()
                 print(f"Auto-promoted {email} to super_admin on startup.")
+
+        # Seed system-stats user for global cache
+        system_email = "system-stats@dashboard.local"
+        system_user = db.query(User).filter(User.email == system_email).first()
+        if not system_user:
+            system_user = User(
+                email=system_email,
+                password_hash=get_password_hash(str(uuid.uuid4())),
+                full_name="System Stats Service",
+                role="student",
+                is_active=False
+            )
+            db.add(system_user)
+            db.commit()
+            print("Seeded system-stats user for global caching.")
         db.close()
     except Exception as e:
-        print("Error promoting admins on startup:", e)
+        print("Error promoting admins or seeding system-stats on startup:", e)
 
 
 app.add_middleware(

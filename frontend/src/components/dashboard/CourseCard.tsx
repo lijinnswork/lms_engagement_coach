@@ -56,7 +56,7 @@ export const CourseCard = ({ course }: { course: Course }) => {
       </div>
       
       <div className="text-[9px] font-sans text-text-secondary dark:text-text-darkSec mb-3">
-        {course.modulesComplete} of {course.modulesTotal} modules
+        {course.modulesComplete} of {course.modulesTotal} components
       </div>
       
       <div className="w-full h-[3px] bg-border-light dark:bg-border-dark rounded-full mb-1 overflow-hidden">

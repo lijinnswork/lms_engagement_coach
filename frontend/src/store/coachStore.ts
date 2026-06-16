@@ -120,7 +120,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
           id: m.id,
           sender: m.sender,
           content: m.content,
-          timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          created_at: m.created_at
         })).reverse();
         set({ messages: mapped });
       }
@@ -138,7 +139,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       id: optimisticId, 
       sender: 'student', 
       content: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      created_at: new Date().toISOString()
     };
 
     set({ 
@@ -168,7 +170,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
           id: data.id,
           sender: 'coach',
           content: data.content,
-          timestamp: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          timestamp: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          created_at: data.created_at
         }],
         isTyping: false
       }));

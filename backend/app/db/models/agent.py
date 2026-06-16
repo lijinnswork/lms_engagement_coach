@@ -22,6 +22,8 @@ class AgentName(str, enum.Enum):
     goal_watcher       = "goal_watcher"
     curiosity_watcher  = "curiosity_watcher"
     motivation_watcher = "motivation_watcher"
+    progress_range_watcher = "progress_range_watcher"
+    reminder_agent     = "reminder_agent"
 
 class AgentDecision(str, enum.Enum):
     speak        = "speak"

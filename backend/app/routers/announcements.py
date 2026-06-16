@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.db.models.announcement import Announcement, AnnouncementDismissal
 from app.db.models.user import User
+from app.api.deps import get_current_user
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -25,33 +26,26 @@ class AnnouncementResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# Mocked current user for now
-async def get_current_user_id() -> uuid.UUID:
-    # Returning a dummy UUID or we can use the first user in DB for testing
-    return uuid.uuid4()
-
 @router.get("/", response_model=List[AnnouncementResponse])
-async def get_active_announcements(db: Session = Depends(get_db)):
-    # In a real app, we'd use current_user.id. Here we use a query that fetches active announcements.
-    # We would also check if it's dismissed by the user.
+async def get_active_announcements(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     now = datetime.utcnow()
-    # Let's get active announcements that are within date range
+    # Find IDs of announcements already dismissed by the current user
+    dismissed_ids = [d.announcement_id for d in db.query(AnnouncementDismissal).filter(AnnouncementDismissal.user_id == current_user.id).all()]
+    
     announcements = db.query(Announcement).filter(
         Announcement.is_active == True,
         Announcement.start_date <= now,
-        Announcement.end_date >= now
+        Announcement.end_date >= now,
+        ~Announcement.id.in_(dismissed_ids) if dismissed_ids else True
     ).all()
     return announcements
 
 @router.post("/{announcement_id}/dismiss")
-async def dismiss_announcement(announcement_id: uuid.UUID, db: Session = Depends(get_db)):
-    # Mock user
-    user_id = await get_current_user_id()
-    
-    # In a real app we'd save to DB:
-    # dismissal = AnnouncementDismissal(announcement_id=announcement_id, user_id=user_id)
-    # db.add(dismissal)
-    # db.commit()
+async def dismiss_announcement(announcement_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Save dismissal to database so they do not reappear
+    dismissal = AnnouncementDismissal(announcement_id=announcement_id, user_id=current_user.id)
+    db.add(dismissal)
+    db.commit()
     return {"status": "success", "message": "Announcement dismissed"}
 
 @router.get("/admin", response_model=List[AnnouncementResponse])

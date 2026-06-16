@@ -46,31 +46,58 @@ def get_mock_course_data(course_id: str):
         "enrollment_date": (now - timedelta(days=30)).isoformat() + "Z"
     }
 
-async def get_live_courses(current_user: User):
+async def get_live_courses(current_user: User, db: Session = None):
     if not current_user.lms_username:
         return []
     from app.services.openedx_client import openedx_client
+    
+    courses = []
     try:
-        return await openedx_client.get_user_courses_direct(current_user.lms_username)
+        courses = await openedx_client.get_user_courses_direct(current_user.lms_username)
     except Exception as e:
         logger.error(f"Failed to fetch live courses for {current_user.lms_username}: {e}")
         try:
             from app.database import SessionLocal
             from app.db.models.lms_data_cache import LMSDataCache
-            db = SessionLocal()
-            cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
-            db.close()
+            local_db = SessionLocal()
+            cache_entries = local_db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
+            local_db.close()
             if cache_entries:
                 logger.info(f"get_live_courses fallback: Loaded {len(cache_entries)} courses from cache")
-                return [entry.data for entry in cache_entries]
+                courses = [entry.data for entry in cache_entries]
         except Exception as db_err:
             logger.error(f"Failed to fetch cached courses: {db_err}")
-        return []
+
+    # Inject cohort stats from system-stats@dashboard.local
+    if courses:
+        close_db = False
+        if db is None:
+            from app.database import SessionLocal
+            db = SessionLocal()
+            close_db = True
+        try:
+            from app.db.models.lms_data_cache import LMSDataCache
+            system_user = db.query(User).filter(User.email == "system-stats@dashboard.local").first()
+            if system_user:
+                cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == system_user.id).all()
+                stats_by_course = {entry.course_id: entry.data for entry in cache_entries}
+                for course in courses:
+                    course_id = course.get("course_id")
+                    if course_id in stats_by_course:
+                        stat = stats_by_course[course_id]
+                        course["cohort_average_progress"] = stat.get("avg_progress_percent", 0.0)
+        except Exception as e:
+            logger.error(f"Error injecting cohort stats: {e}")
+        finally:
+            if close_db:
+                db.close()
+
+    return courses
 
 @router.get("")
 @router.get("/")
-async def get_courses_list(current_user: User = Depends(get_current_user)):
-    return await get_live_courses(current_user)
+async def get_courses_list(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return await get_live_courses(current_user, db)
 
 @router.get("/upcoming-assignments")
 async def get_upcoming_assignments(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -193,8 +220,8 @@ async def get_course_detail(course_id: str, current_user: User = Depends(get_cur
     return get_mock_course_data(course_id)
 
 @router.get("/{course_id}/coach-take")
-async def get_coach_take(course_id: str, current_user: User = Depends(get_current_user)):
-    courses = await get_live_courses(current_user)
+async def get_coach_take(course_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    courses = await get_live_courses(current_user, db)
     data = None
     for c in courses:
         if c.get("course_id") == course_id:
@@ -238,19 +265,22 @@ async def get_coach_take(course_id: str, current_user: User = Depends(get_curren
     assessments = data.get("assessments", [])
     assessment_summary = ", ".join([f"{a.get('assessment_name', '')}: {a.get('score', 0)}%" for a in assessments[:3]])
     
+    cohort_avg_progress = data.get("cohort_average_progress")
+    cohort_avg_str = f"Class Average Progress: {cohort_avg_progress}%\n" if cohort_avg_progress is not None else ""
+    
     prompt = f"""
 You are the student's learning coach. Generate a SHORT, personalized observation (2-3 sentences max) about their progress in this specific course.
 
 Course: {data.get("course_name")}
 Progress: {items_completed} of {total_items} items ({progress_pct}%)
-Overall grade: {overall_grade}%
+{cohort_avg_str}Overall grade: {overall_grade}%
 Pass/fail: {pass_fail_status}
 Last active: {days_since} days ago
 Recent assessment scores: {assessment_summary}
 
 Rules:
 - Be warm, casual, specific
-- Reference actual numbers from the data
+- Reference actual numbers from the data (including the class average progress if provided)
 - If they've been away, acknowledge it gently (no guilt)
 - If they're doing well, be specific about what's going well
 - If their grade is dropping, mention it with encouragement

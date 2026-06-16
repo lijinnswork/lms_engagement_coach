@@ -106,16 +106,16 @@ class OpenEdxClient:
             logger.warning(f"User {user.email} has no LMS username linked.")
             return []
 
-        lms_url = settings.LMS_URL
-        admin_email = settings.LMS_ADMIN_EMAIL
-        admin_password = settings.LMS_ADMIN_PASSWORD
+        lms_url = "https://iimbx.edu.in" if settings.LMS_URL == "https://iimbx.site" else settings.LMS_URL
+        admin_email = "iimbx.support@iimbx.iimb.ac.in" if settings.LMS_ADMIN_EMAIL == "admin@iimbx.iimb.ac.in" else settings.LMS_ADMIN_EMAIL
+        admin_password = "Welcome@123" if settings.LMS_ADMIN_PASSWORD == "Drc@1234" else settings.LMS_ADMIN_PASSWORD
         user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
         logger.info(f"LMS Sync: Starting for user {lms_username}")
 
         # Use an AsyncClient to manage cookie state across redirects/requests
         # We explicitly set verify=False and timeout=3.0 to fail-fast and bypass SSL or slow network routing issues
-        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=3.0) as client:
+        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=45.0) as client:
             try:
                 # Step A: Get initial cookies from root
                 root_res = await client.get(f"{lms_url}/")
@@ -164,7 +164,7 @@ class OpenEdxClient:
                     profile_res = await client.get(profile_url, headers=profile_headers)
                     if profile_res.status_code != 200:
                         logger.error(f"LMS Sync: Profile fetch failed on page {current_page}: {profile_res.status_code}")
-                        break
+                        raise ValueError(f"LMS profile fetch failed on page {current_page}")
 
                     data = profile_res.json()
                     enrollments = data.get("enrollments", [])
@@ -179,11 +179,13 @@ class OpenEdxClient:
 
                 # Step E: Update LMSDataCache database entries
                 from app.db.models.lms_data_cache import LMSDataCache
+                from app.db.models.daily_activity import DailyActivity
 
                 # Delete old cache for this user
                 db.query(LMSDataCache).filter(LMSDataCache.user_id == user.id).delete()
 
                 # Insert new cache entries
+                unique_dates = set()
                 for enrollment in all_enrollments:
                     course_id = enrollment.get("course_id")
                     if course_id:
@@ -194,313 +196,64 @@ class OpenEdxClient:
                         )
                         db.add(cache_entry)
 
+                        last_active_at_str = enrollment.get("last_activity_time") or enrollment.get("progress", {}).get("last_activity_at")
+                        if last_active_at_str:
+                            try:
+                                last_active_date = datetime.fromisoformat(last_active_at_str.replace('Z', '+00:00')).date()
+                                unique_dates.add(last_active_date)
+                            except Exception as e:
+                                logger.error(f"Failed to parse last_activity_time during sync: {e}")
+
+                # Save unique daily activity dates in database
+                for last_active_date in unique_dates:
+                    daily_act = db.query(DailyActivity).filter(
+                        DailyActivity.user_id == user.id,
+                        DailyActivity.date == last_active_date
+                    ).first()
+                    
+                    # Count how many courses were active on this date
+                    count = 0
+                    for enrollment in all_enrollments:
+                        last_active_at_str = enrollment.get("last_activity_time") or enrollment.get("progress", {}).get("last_activity_at")
+                        if last_active_at_str:
+                            try:
+                                dt = datetime.fromisoformat(last_active_at_str.replace('Z', '+00:00')).date()
+                                if dt == last_active_date:
+                                    count += 1
+                            except:
+                                pass
+                    count = max(count, 1)
+
+                    if daily_act:
+                        daily_act.was_active = True
+                        daily_act.courses_accessed = count
+                    else:
+                        new_act = DailyActivity(
+                            user_id=user.id,
+                            date=last_active_date,
+                            was_active=True,
+                            courses_accessed=count
+                        )
+                        db.add(new_act)
+
                 db.commit()
                 return all_enrollments
             except Exception as e:
                 import traceback
                 error_trace = traceback.format_exc()
-                logger.error(f"LMS Sync Error for user {lms_username}: {e}. Detail:\n{error_trace}\nAttempting high-fidelity fallback based on username...")
+                logger.error(f"LMS Sync Error for user {lms_username}: {e}. Detail:\n{error_trace}")
                 db.rollback()
-
-                from app.db.models.lms_data_cache import LMSDataCache
-
-                # Generate target institutional mock course data based on user's LMS username
-                now = datetime.utcnow()
-                username_lower = lms_username.lower().strip()
-
-                fintech_course = {
-                    "course_id": "course-v1:IIMBx+1002+2025",
-                    "course_name": "IIMBx 1002: FinTech Certificate Programme",
-                    "course_details": {
-                        "course_id": "course-v1:IIMBx+1002+2025",
-                        "course_name": "IIMBx 1002: FinTech Certificate Programme"
-                    },
-                    "progress_percent": 74.5,
-                    "completed_components": 89,
-                    "total_components": 120,
-                    "last_active_at": (now - timedelta(hours=2)).isoformat() + "Z",
-                    "progress": {
-                        "progress_percent": 74.5,
-                        "completed_items": 89,
-                        "total_items": 120,
-                        "last_activity_at": (now - timedelta(hours=2)).isoformat() + "Z"
-                    },
-                    "overall_grade": 89.2,
-                    "grade_last_updated": (now - timedelta(hours=2)).isoformat() + "Z",
-                    "enrollment_active": True,
-                    "enrollment_date": (now - timedelta(days=45)).isoformat() + "Z",
-                    "assessments": [
-                        {
-                            "assessment_name": "Quiz 1: FinTech Ecosystem",
-                            "score": 95.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=35)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Quiz 2: Blockchain Basics",
-                            "score": 88.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=20)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Lab 1: Smart Contracts",
-                            "score": 85.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=5)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Quiz 3: FinTech Regulations",
-                            "max_score": 100.0,
-                            "graded": False,
-                            "timestamp": (now - timedelta(days=2)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Quiz 4: Tokenomics",
-                            "max_score": 100.0,
-                            "graded": False,
-                            "timestamp": (now + timedelta(days=1)).isoformat() + "Z"
-                        }
-                    ]
-                }
-
-                business_mgmt = {
-                    "course_id": "course-v1:IIMBx+1001+2025",
-                    "course_name": "IIMBx 1001: Introduction to Business Management",
-                    "course_details": {
-                        "course_id": "course-v1:IIMBx+1001+2025",
-                        "course_name": "IIMBx 1001: Introduction to Business Management"
-                    },
-                    "progress_percent": 42.0,
-                    "completed_components": 42,
-                    "total_components": 100,
-                    "last_active_at": (now - timedelta(days=1)).isoformat() + "Z",
-                    "progress": {
-                        "progress_percent": 42.0,
-                        "completed_items": 42,
-                        "total_items": 100,
-                        "last_activity_at": (now - timedelta(days=1)).isoformat() + "Z"
-                    },
-                    "overall_grade": 78.5,
-                    "grade_last_updated": (now - timedelta(days=1)).isoformat() + "Z",
-                    "enrollment_active": True,
-                    "enrollment_date": (now - timedelta(days=20)).isoformat() + "Z",
-                    "assessments": [
-                        {
-                            "assessment_name": "Quiz 1: Organizational Structure",
-                            "score": 80.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=15)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Lab 1: Strategic Planning Case Study",
-                            "score": 77.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=4)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Quiz 2: Financial Planning",
-                            "max_score": 100.0,
-                            "graded": False,
-                            "timestamp": now.isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Final Exam: Business Management",
-                            "max_score": 100.0,
-                            "graded": False,
-                            "timestamp": (now + timedelta(days=5)).isoformat() + "Z"
-                        }
-                    ]
-                }
-
-                ai_ml_practice = {
-                    "course_id": "course-v1:IIMBx+1003+2025",
-                    "course_name": "IIMBx 1003: AI & Machine Learning in Practice",
-                    "course_details": {
-                        "course_id": "course-v1:IIMBx+1003+2025",
-                        "course_name": "IIMBx 1003: AI & Machine Learning in Practice"
-                    },
-                    "progress_percent": 100.0,
-                    "completed_components": 90,
-                    "total_components": 90,
-                    "last_active_at": (now - timedelta(days=3)).isoformat() + "Z",
-                    "progress": {
-                        "progress_percent": 100.0,
-                        "completed_items": 90,
-                        "total_items": 90,
-                        "last_activity_at": (now - timedelta(days=3)).isoformat() + "Z"
-                    },
-                    "overall_grade": 94.8,
-                    "grade_last_updated": (now - timedelta(days=3)).isoformat() + "Z",
-                    "enrollment_active": True,
-                    "enrollment_date": (now - timedelta(days=50)).isoformat() + "Z",
-                    "assessments": [
-                        {
-                            "assessment_name": "Quiz 1: Supervised Learning Models",
-                            "score": 100.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=40)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Quiz 2: Deep Learning Networks",
-                            "score": 92.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=25)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Final Project: ML Pipeline Deployment",
-                            "score": 93.5,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=3)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Capstone: AI Model Deployment",
-                            "max_score": 100.0,
-                            "graded": False,
-                            "timestamp": (now + timedelta(days=4)).isoformat() + "Z"
-                        }
-                    ]
-                }
-
-                business_analytics = {
-                    "course_id": "course-v1:IIMBx+1004+2025",
-                    "course_name": "IIMBx 1004: Business Analytics & Data Mining",
-                    "course_details": {
-                        "course_id": "course-v1:IIMBx+1004+2025",
-                        "course_name": "IIMBx 1004: Business Analytics & Data Mining"
-                    },
-                    "progress_percent": 55.0,
-                    "completed_components": 66,
-                    "total_components": 120,
-                    "last_active_at": (now - timedelta(hours=5)).isoformat() + "Z",
-                    "progress": {
-                        "progress_percent": 55.0,
-                        "completed_items": 66,
-                        "total_items": 120,
-                        "last_activity_at": (now - timedelta(hours=5)).isoformat() + "Z"
-                    },
-                    "overall_grade": 83.4,
-                    "grade_last_updated": (now - timedelta(hours=5)).isoformat() + "Z",
-                    "enrollment_active": True,
-                    "enrollment_date": (now - timedelta(days=25)).isoformat() + "Z",
-                    "assessments": [
-                        {
-                            "assessment_name": "Quiz 1: Data Preprocessing",
-                            "score": 89.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=18)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Lab 1: Clustering Algorithms",
-                            "score": 78.0,
-                            "max_score": 100.0,
-                            "graded": True,
-                            "timestamp": (now - timedelta(days=8)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Quiz 2: Classification Trees",
-                            "max_score": 100.0,
-                            "graded": False,
-                            "timestamp": (now - timedelta(days=1)).isoformat() + "Z"
-                        },
-                        {
-                            "assessment_name": "Final Exam: Analytics",
-                            "max_score": 100.0,
-                            "graded": False,
-                            "timestamp": (now + timedelta(days=1)).isoformat() + "Z"
-                        }
-                    ]
-                }
-
-                # Determine the correct courses based on the username
-                if "khushi" in username_lower:
-                    expected_courses = [fintech_course, business_mgmt]
-                elif "lijin" in username_lower:
-                    expected_courses = [ai_ml_practice, fintech_course]
-                elif "vishal" in username_lower:
-                    expected_courses = [business_analytics, business_mgmt]
-                else:
-                    # Provide customized default course to immediately feel premium and responsive
-                    custom_capstone = {
-                        "course_id": f"course-v1:IIMBx+{username_lower[:4].upper()}+2026",
-                        "course_name": f"IIMBx: {lms_username.title()}'s Advanced Capstone",
-                        "course_details": {
-                            "course_id": f"course-v1:IIMBx+{username_lower[:4].upper()}+2026",
-                            "course_name": f"IIMBx: {lms_username.title()}'s Advanced Capstone"
-                        },
-                        "progress_percent": 30.0,
-                        "completed_components": 15,
-                        "total_components": 50,
-                        "last_active_at": now.isoformat() + "Z",
-                        "progress": {
-                            "progress_percent": 30.0,
-                            "completed_items": 15,
-                            "total_items": 50,
-                            "last_activity_at": now.isoformat() + "Z"
-                        },
-                        "overall_grade": 90.0,
-                        "grade_last_updated": now.isoformat() + "Z",
-                        "enrollment_active": True,
-                        "enrollment_date": (now - timedelta(days=10)).isoformat() + "Z",
-                        "assessments": [
-                            {
-                                "assessment_name": "Initial Proposal",
-                                "score": 90.0,
-                                "max_score": 100.0,
-                                "graded": True,
-                                "timestamp": (now - timedelta(days=8)).isoformat() + "Z"
-                            },
-                            {
-                                "assessment_name": "Milestone 2: Data Cleaning",
-                                "max_score": 100.0,
-                                "graded": False,
-                                "timestamp": (now + timedelta(days=6)).isoformat() + "Z"
-                            }
-                        ]
-                    }
-                    expected_courses = [fintech_course, custom_capstone]
-
-                # check if existing cache has the exact courses. If yes, reuse them to preserve states.
-                existing_cache = db.query(LMSDataCache).filter(LMSDataCache.user_id == user.id).all()
-                if existing_cache:
-                    existing_course_ids = {entry.course_id for entry in existing_cache}
-                    expected_course_ids = {c["course_id"] for c in expected_courses}
-                    if existing_course_ids == expected_course_ids:
-                        logger.info(f"LMS Sync Graceful Fallback: Reusing existing {len(existing_cache)} cached records matching current user's lms_username.")
-                        return [entry.data for entry in existing_cache]
-                    else:
-                        logger.info("LMS Sync Graceful Fallback: Current cached courses do not match expected course schema. Re-generating...")
-                        db.query(LMSDataCache).filter(LMSDataCache.user_id == user.id).delete()
-
-                # Insert new mock cache entries
-                for mock_course in expected_courses:
-                    cache_entry = LMSDataCache(
-                        user_id=user.id,
-                        course_id=mock_course["course_id"],
-                        data=mock_course
-                    )
-                    db.add(cache_entry)
-                db.commit()
-
-                return expected_courses
+                raise ValueError("Poor connection, try again for data population")
 
     async def get_user_courses_direct(self, username: str) -> list:
-        lms_url = settings.LMS_URL
-        admin_email = settings.LMS_ADMIN_EMAIL
-        admin_password = settings.LMS_ADMIN_PASSWORD
+        lms_url = "https://iimbx.edu.in" if settings.LMS_URL == "https://iimbx.site" else settings.LMS_URL
+        admin_email = "iimbx.support@iimbx.iimb.ac.in" if settings.LMS_ADMIN_EMAIL == "admin@iimbx.iimb.ac.in" else settings.LMS_ADMIN_EMAIL
+        admin_password = "Welcome@123" if settings.LMS_ADMIN_PASSWORD == "Drc@1234" else settings.LMS_ADMIN_PASSWORD
         user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
         logger.info(f"LMS Direct Fetch: Starting for user {username}")
 
-        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=3.0) as client:
+        async with httpx.AsyncClient(headers={'User-Agent': user_agent}, follow_redirects=True, verify=False, timeout=45.0) as client:
             # Step A: Get initial cookies from root
             await client.get(f"{lms_url}/")
             

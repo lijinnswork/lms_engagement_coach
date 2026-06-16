@@ -10,6 +10,22 @@ interface CoachMessageListProps {
 }
 
 export const CoachMessageList: React.FC<CoachMessageListProps> = ({ messages, isTyping, timeoutError, onRetry }) => {
+  const getFriendlyDateString = (isoString?: string) => {
+    if (!isoString) return "Today";
+    const date = new Date(isoString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  };
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showScrollPill, setShowScrollPill] = useState(false);
   const prevMessagesLength = useRef(messages.length);
@@ -63,14 +79,16 @@ export const CoachMessageList: React.FC<CoachMessageListProps> = ({ messages, is
             </div>
           ) : (
             messages.map((msg, idx) => {
-              // Primitive date clustering logic (just 'Today' for now)
-              const showDateCluster = idx === 0 || msg.timestamp.includes("AM") !== messages[idx-1].timestamp.includes("AM"); // Mock cluster
+              const msgDate = msg.created_at ? new Date(msg.created_at).toDateString() : "";
+              const prevCreatedAt = idx > 0 ? messages[idx - 1].created_at : undefined;
+              const prevMsgDate = prevCreatedAt ? new Date(prevCreatedAt).toDateString() : "";
+              const showDateCluster = idx === 0 || msgDate !== prevMsgDate;
               return (
                 <React.Fragment key={msg.id}>
-                  {showDateCluster && idx === 0 && (
-                    <div className="flex justify-center mb-6">
-                      <span className="px-3 py-1 rounded-full bg-border-light dark:bg-border-dark text-[12px] text-text-secondary">
-                        Today
+                  {showDateCluster && (
+                    <div className="flex justify-center mb-6 mt-4">
+                      <span className="px-3 py-1 rounded-full bg-border-light dark:bg-border-dark text-[12px] text-text-secondary font-medium">
+                        {getFriendlyDateString(msg.created_at)}
                       </span>
                     </div>
                   )}

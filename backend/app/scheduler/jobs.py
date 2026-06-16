@@ -236,6 +236,117 @@ async def check_and_send_notifications():
     finally:
         db.close()
 
+async def refresh_global_course_stats():
+    logger.info("Starting global class-wide stats refresh...")
+    import httpx
+    from app.config import settings
+    from app.db.models.user import User
+    from app.db.models.lms_data_cache import LMSDataCache
+
+    lms_url = "https://iimbx.edu.in" if settings.LMS_URL == "https://iimbx.site" else settings.LMS_URL
+    email = "iimbx.support@iimbx.iimb.ac.in" if settings.LMS_ADMIN_EMAIL == "admin@iimbx.iimb.ac.in" else settings.LMS_ADMIN_EMAIL
+    password = "Welcome@123" if settings.LMS_ADMIN_PASSWORD == "Drc@1234" else settings.LMS_ADMIN_PASSWORD
+
+    db = SessionLocal()
+    try:
+        # Get the system user
+        system_user = db.query(User).filter(User.email == "system-stats@dashboard.local").first()
+        if not system_user:
+            logger.error("system-stats@dashboard.local user not found. Skipping stats sync.")
+            return
+
+        async with httpx.AsyncClient(follow_redirects=True, verify=False, timeout=30.0) as client:
+            # 1. Get CSRF Token
+            try:
+                await client.get(f"{lms_url}/login")
+                csrf_token = client.cookies.get("csrftoken") or ''
+            except Exception as e:
+                logger.error(f"Failed to connect to LMS login page for global stats: {e}")
+                return
+
+            # 2. Login
+            login_headers = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrf_token,
+                'Referer': f"{lms_url}/login"
+            }
+            login_data = {
+                'email': email,
+                'password': password
+            }
+            
+            try:
+                res = await client.post(f"{lms_url}/login_ajax", headers=login_headers, data=login_data)
+                if res.status_code != 200:
+                    logger.error("Failed to authenticate with LMS using admin credentials for global stats.")
+                    return
+            except Exception as e:
+                logger.error(f"Failed to authenticate with LMS for global stats: {e}")
+                return
+
+            # 3. Fetch stats page by page
+            stats_headers = {
+                'X-CSRFToken': client.cookies.get("csrftoken") or csrf_token or '',
+                'Referer': f"{lms_url}/"
+            }
+
+            page = 1
+            has_more = True
+            all_courses = []
+
+            while has_more:
+                api_url = f"{lms_url}/api/admin/course-stats/?page={page}"
+                try:
+                    stats_res = await client.get(api_url, headers=stats_headers)
+                    if stats_res.status_code == 200:
+                        data = stats_res.json()
+                        courses_page = data.get("courses", [])
+                        all_courses.extend(courses_page)
+                        
+                        pagination = data.get("pagination", {})
+                        if pagination and pagination.get("next"):
+                            page += 1
+                        else:
+                            has_more = False
+                    else:
+                        logger.error(f"LMS returned status code {stats_res.status_code} for course stats on page {page}")
+                        has_more = False
+                except Exception as e:
+                    logger.error(f"Exception while fetching global course stats page {page}: {e}")
+                    has_more = False
+
+            logger.info(f"Retrieved {len(all_courses)} course stats from LMS. Updating cache...")
+
+            # 4. Save to lms_data_cache
+            for course_stat in all_courses:
+                course_id = course_stat.get("course_id")
+                if not course_id:
+                    continue
+
+                cache_entry = db.query(LMSDataCache).filter(
+                    LMSDataCache.user_id == system_user.id,
+                    LMSDataCache.course_id == course_id
+                ).first()
+
+                if cache_entry:
+                    cache_entry.data = course_stat
+                else:
+                    new_entry = LMSDataCache(
+                        user_id=system_user.id,
+                        course_id=course_id,
+                        data=course_stat
+                    )
+                    db.add(new_entry)
+
+            db.commit()
+            logger.info("Successfully updated global class-wide stats cache.")
+
+    except Exception as e:
+        logger.error(f"Failed to refresh global course stats: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 def setup_scheduler():
     import os
     env_run_int = int(os.environ.get("AGENT_RUN_INTERVAL_HOURS", "4"))
@@ -256,6 +367,13 @@ def setup_scheduler():
         replace_existing=True
     )
     scheduler.add_job(
+        refresh_global_course_stats,
+        'interval', hours=12,
+        id='refresh_global_stats',
+        name='Refresh global class stats cache',
+        replace_existing=True
+    )
+    scheduler.add_job(
         weekly_reset,
         'cron', day_of_week='mon', hour=0, minute=1,
         id='weekly_reset',
@@ -271,3 +389,8 @@ def setup_scheduler():
     )
     scheduler.start()
     logger.info("Scheduler started successfully")
+
+    # Run once on startup asynchronously to seed the local DB with data immediately
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        loop.create_task(refresh_global_course_stats())

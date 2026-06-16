@@ -344,6 +344,16 @@ def send_message(msg_in: CoachMessageCreate, db: Session = Depends(get_db)):
             upcoming_deadlines.sort(key=lambda x: x[0])
             upcoming_deadline_str = upcoming_deadlines[0][1]
 
+    # Fetch cohort statistics
+    cohort_stats = {}
+    try:
+        system_user = db.query(User).filter(User.email == "system-stats@dashboard.local").first()
+        if system_user:
+            sys_caches = db.query(LMSDataCache).filter(LMSDataCache.user_id == system_user.id).all()
+            cohort_stats = {entry.course_id: entry.data for entry in sys_caches}
+    except Exception as e:
+        logger.error(f"Failed to fetch global course stats for chat prompt: {e}")
+
     # Courses and Progress listing
     courses_progress_lines = []
     grades_lines = []
@@ -353,7 +363,16 @@ def send_message(msg_in: CoachMessageCreate, db: Session = Depends(get_db)):
         c_progress = d.get("progress_percent") or d.get("progress", {}).get("progress_percent", 0.0) or 0.0
         items_completed = d.get("completed_components") or d.get("progress", {}).get("completed_items", 0)
         total_items = d.get("total_components") or d.get("progress", {}).get("total_items", 0)
-        courses_progress_lines.append(f"{c_name}: {c_progress}% ({items_completed} of {total_items} items)")
+        
+        course_id = entry.course_id
+        cohort_pct = None
+        if course_id in cohort_stats:
+            cohort_pct = cohort_stats[course_id].get("avg_progress_percent")
+
+        if cohort_pct is not None:
+            courses_progress_lines.append(f"{c_name}: {c_progress}% ({items_completed} of {total_items} items) (Class Average Progress: {cohort_pct}%)")
+        else:
+            courses_progress_lines.append(f"{c_name}: {c_progress}% ({items_completed} of {total_items} items)")
         
         # Grades Summary
         grade = d.get("overall_grade")
@@ -385,6 +404,27 @@ def send_message(msg_in: CoachMessageCreate, db: Session = Depends(get_db)):
                 date_str = g.target_date.strftime("%Y-%m-%d") if g.target_date else "no deadline"
                 goals_lines.append(f"{g.title} — {g.progress_percent}% — target: {date_str}")
             active_goals_str = "\n".join(goals_lines)
+
+    # Active Pending Nudges listing
+    from app.db.models.nudge import PendingNudge, NudgeGlobalSettings
+    active_nudges_str = "No active nudges"
+    if convo and user:
+        settings = db.query(NudgeGlobalSettings).filter(NudgeGlobalSettings.id == 1).first()
+        expiry_days = settings.nudge_expiry_days if settings else 7
+        now = datetime.now(timezone.utc)
+        expiry_threshold = now - timedelta(days=expiry_days)
+        
+        active_nudges = db.query(PendingNudge).filter(
+            PendingNudge.user_id == user.id,
+            PendingNudge.is_dismissed == False,
+            (PendingNudge.remind_later_at == None) | (PendingNudge.remind_later_at <= now),
+            PendingNudge.generated_at >= expiry_threshold
+        ).all()
+        if active_nudges:
+            nudges_lines = []
+            for n in active_nudges:
+                nudges_lines.append(f"- [{n.nudge_type}] {n.message} (course: {n.course_name})")
+            active_nudges_str = "\n".join(nudges_lines)
 
     # Past Conversation Summary
     summary_str = "No previous summary — this is an early conversation"
@@ -439,6 +479,9 @@ GRADES SUMMARY:
 ACTIVE GOALS:
 {active_goals_str}
 
+ACTIVE NUDGES:
+{active_nudges_str}
+
 PAST CONVERSATION SUMMARY:
 {summary_str}
 
@@ -477,30 +520,137 @@ The student just said: "{msg_in.content}"
     return coach_msg
 
 @router.get("/notes", response_model=CoachNotesResponse)
-def get_coach_notes():
-    return CoachNotesResponse(
+def get_coach_notes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # 1. Fetch user courses data from cache
+    courses_data = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
+    courses_list = []
+    for c in courses_data:
+        c_name = c.data.get("course_name", c.data.get("name", "Unknown Course"))
+        c_progress = c.data.get("progress_percent") or c.data.get("progress", {}).get("progress_percent", 0.0) or 0.0
+        courses_list.append(f"- {c_name}: {c_progress}% completed")
+    courses_summary = "\n".join(courses_list) if courses_list else "None linked"
+
+    # 2. Fetch user goals
+    from app.db.models.goals import Goal
+    goals_data = db.query(Goal).filter(Goal.user_id == current_user.id).all()
+    goals_list = []
+    for g in goals_data:
+        goals_list.append(f"- {g.title} (Status: {g.status}, Progress: {g.progress_percent}%)")
+    goals_summary = "\n".join(goals_list) if goals_list else "No goals set"
+
+    # 3. Fetch user rhythm activity in the past 14 days
+    from app.db.models.daily_activity import DailyActivity
+    rhythm_data = db.query(DailyActivity).filter(
+        DailyActivity.user_id == current_user.id,
+        DailyActivity.was_active == True
+    ).order_by(DailyActivity.date.desc()).limit(14).all()
+    rhythm_days = [r.date.strftime('%a') for r in rhythm_data]
+    rhythm_summary = f"Active days in last 2 weeks: {', '.join(set(rhythm_days))}" if rhythm_days else "No study activity logged yet in the past 2 weeks"
+
+    # 4. Fallback default values
+    fallback_notes = CoachNotesResponse(
         learning_patterns=[
-            "You tend to study most on Tue-Wed-Thu",
-            "Your most active time is 10 AM - 12 PM",
-            "You engage most deeply with hands-on exercises"
+            "You tend to study mostly on " + (", ".join(set(rhythm_days)) if rhythm_days else "weekdays"),
+            "We are tracking your study time to find your peak active hours.",
+            "Complete more components to help me spot your learning style!"
         ],
         wellbeing=[
-            "Your average mood this month: Okay-Good",
-            "You've felt overwhelmed 3 times this month",
-            "You used breathing exercises twice"
+            "You seem focused and steady. Keep up the good work!",
+            "Remember to take short breaks during longer study sessions.",
+            "Let me know in chat if you feel stuck or overwhelmed."
         ],
         goals=[
-            "You've completed 2 of 5 goals this month",
-            "You prefer short-term goals (1-2 weeks)",
-            "Goals you set yourself have higher completion than ones I suggest"
+            f"You have set {len(goals_data)} goal(s) so far.",
+            "Short-term goals (1-2 weeks) tend to work best for focus.",
+            "We will track your progress automatically as you update goals."
         ],
         courses=[
-            "Strongest engagement: Python Fundamentals",
-            "Most revisited topic: Data Structures",
-            "Course with lowest activity: UX Design (2 weeks since last visit)"
+            f"Active courses: {len(courses_data)}",
+            "Focus on the course with the highest completion first.",
+            courses_list[0] if courses_list else "No active course enrollments loaded yet."
         ],
         last_updated=datetime.utcnow()
     )
+
+    # 5. Gemini request if configured
+    if gemini_client.model:
+        prompt = f"""
+You are the student's learning coach. Analyze the following student dashboard data and write highly personalized, fresh insights for their Coach Notes.
+Format the output ONLY as a valid JSON object matching the JSON schema below. Do not output anything else. No backticks, no Markdown wrapping (e.g. do not wrap in ```json).
+
+JSON Schema:
+{{
+  "learning_patterns": [string, string, string],
+  "wellbeing": [string, string, string],
+  "goals": [string, string, string],
+  "courses": [string, string, string]
+}}
+
+STUDENT DATA:
+Name: {current_user.full_name or 'Student'}
+Courses:
+{courses_summary}
+
+Goals:
+{goals_summary}
+
+Rhythm:
+{rhythm_summary}
+"""
+        try:
+            raw_res = gemini_client.generate_coach_message(prompt)
+            # clean JSON markdown markers if any
+            clean_res = raw_res.strip()
+            if clean_res.startswith("```"):
+                lines = clean_res.split("\n")
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                clean_res = "\n".join(lines).strip()
+            
+            import json
+            parsed = json.loads(clean_res)
+            return CoachNotesResponse(
+                learning_patterns=parsed.get("learning_patterns", fallback_notes.learning_patterns),
+                wellbeing=parsed.get("wellbeing", fallback_notes.wellbeing),
+                goals=parsed.get("goals", fallback_notes.goals),
+                courses=parsed.get("courses", fallback_notes.courses),
+                last_updated=datetime.utcnow()
+            )
+        except Exception as e:
+            print(f"Failed to generate dynamic Gemini notes: {e}")
+            return fallback_notes
+
+    return fallback_notes
+
+@router.post("/notes/clear")
+def clear_coach_notes(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Deleting all conversations and chat messages clears the coach's context/memory.
+    conversation_ids = [c.id for c in db.query(CoachConversation).filter(CoachConversation.user_id == current_user.id).all()]
+    if conversation_ids:
+        db.query(CoachMessage).filter(CoachMessage.conversation_id.in_(conversation_ids)).delete(synchronize_session=False)
+    db.query(CoachConversation).filter(CoachConversation.user_id == current_user.id).delete(synchronize_session=False)
+    db.commit()
+    return {"status": "success", "message": "Coach memory cleared successfully."}
+
+@router.get("/latest-greeting")
+def get_latest_greeting(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Find the most recent message from the coach in any of the user's conversations
+    conversation_ids = [c.id for c in db.query(CoachConversation).filter(CoachConversation.user_id == current_user.id).all()]
+    msg = None
+    if conversation_ids:
+        msg = db.query(CoachMessage).filter(
+            CoachMessage.sender == MessageSender.coach,
+            CoachMessage.conversation_id.in_(conversation_ids)
+        ).order_by(desc(CoachMessage.created_at)).first()
+    
+    if msg:
+        return {"message": msg.content, "timestamp": msg.created_at}
+    return {
+        "message": f"Hello {current_user.full_name.split()[0] if current_user.full_name else 'there'}! I'm keeping track of your learning rhythm and goals. Let me know if you want to chat about your progress!",
+        "timestamp": None
+    }
 
 @router.get("/messages/search", response_model=list[CoachMessageResponse])
 def search_messages(q: str, conversation_id: uuid.UUID, db: Session = Depends(get_db)):

@@ -12,6 +12,7 @@ import { UpcomingDue } from '../components/dashboard/UpcomingDue';
 import { StackedProgressBar } from '../components/dashboard/StackedProgressBar';
 import { CourseCardsTabs } from '../components/dashboard/CourseCardsTabs';
 import { useRemindersStore } from '../store/useRemindersStore';
+import { useDashboardStore } from '../store/dashboardStore';
 import { LearningRhythm } from '../components/dashboard/LearningRhythm';
 import { WavingHand } from '../components/Common/WavingHand';
 import { useNudgeStore } from '../store/nudgeStore';
@@ -39,6 +40,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
   const { user } = useAuthStore();
   const { pendingCount, fetchReminders } = useRemindersStore();
   const { nudges, isPanelOpen, setPanelOpen, fetchNudges } = useNudgeStore();
+  const { coachGreeting, fetchCoachGreeting } = useDashboardStore();
   const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
 
   React.useEffect(() => {
@@ -53,19 +55,25 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
   }, []);
 
   const inProgress = enrolledCourses.filter((c: any) => {
-    const progressPercent = c.progress_percent ?? c.progress ?? 0;
+    const progressObj = typeof c.progress === 'object' && c.progress !== null ? c.progress : {};
+    const progressPercent = progressObj.progress_percent ?? c.progress_percent ?? 0;
     return progressPercent < 100;
   });
   
   const bestCourse = inProgress.sort((a: any, b: any) => {
-    const progressA = a.progress_percent ?? a.progress ?? 0;
-    const progressB = b.progress_percent ?? b.progress ?? 0;
-    return progressB - progressA;
+    const progressObjA = typeof a.progress === 'object' && a.progress !== null ? a.progress : {};
+    const progressPercentA = progressObjA.progress_percent ?? a.progress_percent ?? 0;
+    const progressObjB = typeof b.progress === 'object' && b.progress !== null ? b.progress : {};
+    const progressPercentB = progressObjB.progress_percent ?? b.progress_percent ?? 0;
+    return progressPercentB - progressPercentA;
   })[0];
+  
+  const bestCourseProgressObj = bestCourse && typeof bestCourse.progress === 'object' && bestCourse.progress !== null ? bestCourse.progress : {};
+  const bestCourseProgressPercent = bestCourse ? (bestCourseProgressObj.progress_percent ?? bestCourse.progress_percent ?? 0) : 0;
   
   const nextAction = bestCourse ? {
     label: 'Suggested next step',
-    text: `Your ${bestCourse.course_name || bestCourse.name || 'course'} is ${bestCourse.progress_percent ?? bestCourse.progress ?? 0}% done — keep going to finish it!`,
+    text: `Your ${bestCourse.course_name || bestCourse.name || 'course'} is ${bestCourseProgressPercent}% done — keep going to finish it!`,
     courseId: bestCourse.course_id || bestCourse.id
   } : {
     label: 'Suggested next step',
@@ -83,7 +91,8 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
   React.useEffect(() => {
     fetchReminders();
     fetchNudges();
-  }, [fetchReminders, fetchNudges]);
+    fetchCoachGreeting();
+  }, [fetchReminders, fetchNudges, fetchCoachGreeting]);
 
   const getNavClass = (path: string) => {
     const isActive = location.pathname === path;
@@ -130,7 +139,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
         </motion.div>
         
         <motion.div variants={cardVariants}>
-          <CoachCard message="I'm keeping track of your learning rhythm and goals. Let me know if you want to chat about your progress!" triggeredBy="momentum" />
+          <CoachCard message={coachGreeting} triggeredBy="momentum" />
         </motion.div>
         <motion.div variants={cardVariants}>
           <NextActionCard label={nextAction.label} text={nextAction.text} courseId={nextAction.courseId} />

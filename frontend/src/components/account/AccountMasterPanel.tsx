@@ -39,7 +39,7 @@ const getIconForLabel = (label: string, id: string) => {
 };
 
 export const AccountMasterPanel = () => {
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
   const [query, setQuery] = useState('');
   const [activePanel, setActivePanel] = useState<string | null>(null);
 
@@ -48,11 +48,16 @@ export const AccountMasterPanel = () => {
   const getResults = () => {
     if (!query) return [];
     const q = query.toLowerCase();
-    return accountIndex.filter(item => 
-      item.label.toLowerCase().includes(q) ||
-      item.category.toLowerCase().includes(q) ||
-      item.keywords.some(k => k.includes(q))
-    );
+    return accountIndex
+      .filter(item => {
+        if (item.id === 'lms-account' && user?.role !== 'super_admin' && user?.role !== 'support_staff') return false;
+        return true;
+      })
+      .filter(item => 
+        item.label.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.keywords.some(k => k.includes(q))
+      );
   };
 
   const highlight = (text: string) => {
@@ -107,7 +112,13 @@ export const AccountMasterPanel = () => {
 
               {/* Group Rendering (Standard) */}
               {Array.from(new Set(accountIndex.map(s => s.category))).map(cat => {
-                const items = accountIndex.filter(s => s.category === cat);
+                const items = accountIndex
+                  .filter(s => s.category === cat)
+                  .filter(item => {
+                    if (item.id === 'lms-account' && user?.role !== 'super_admin' && user?.role !== 'support_staff') return false;
+                    return true;
+                  });
+                if (items.length === 0) return null;
                 if (items.find(i => i.id === 'profile')) return null; // Profile is handled via ProfileSummary above
 
                 return (

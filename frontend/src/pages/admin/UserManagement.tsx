@@ -396,6 +396,15 @@ export const UserManagement: React.FC = () => {
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-2 items-center">
                          <button 
+                           onClick={() => {
+                             localStorage.setItem('impersonateUser', u.email);
+                             window.location.href = '/';
+                           }}
+                           className="text-sm font-medium text-accent-sage hover:text-white px-2 py-1 rounded hover:bg-accent-sage/10 opacity-0 group-hover:opacity-100 transition-all font-serif"
+                         >
+                           View Dashboard
+                         </button>
+                         <button 
                            onClick={() => handleSelectUser(u)}
                            className="text-sm font-medium text-[#7B9EA8] hover:text-white px-2 py-1 rounded hover:bg-[#7B9EA8]/10 opacity-0 group-hover:opacity-100 transition-all font-serif"
                          >

@@ -294,6 +294,8 @@ async def get_watchers(current_user: User = Depends(require_super_admin), db: Se
     mom_stats = get_watcher_stats("momentum")
     goal_stats = get_watcher_stats("goal")
     cur_stats = get_watcher_stats("curiosity")
+    range_stats = get_watcher_stats("progress_range_watcher")
+    reminder_stats = get_watcher_stats("reminder_agent")
 
     return {
         "engagement": {
@@ -315,6 +317,16 @@ async def get_watchers(current_user: User = Depends(require_super_admin), db: Se
             **get_config_val(db, "watcher.curiosity", {"active": True, "topic_revisit": 3, "deep_engagement": 2.0, "min_data_weeks": 2}),
             "last_trigger": cur_stats["last_trigger"],
             "messages_count": cur_stats["messages_count"]
+        },
+        "progress_range": {
+            **get_config_val(db, "watcher.progress_range", {"active": True}),
+            "last_trigger": range_stats["last_trigger"],
+            "messages_count": range_stats["messages_count"]
+        },
+        "reminder_agent": {
+            **get_config_val(db, "watcher.reminder", {"active": True}),
+            "last_trigger": reminder_stats["last_trigger"],
+            "messages_count": reminder_stats["messages_count"]
         }
     }
 

@@ -6,6 +6,7 @@ export interface CoachMessageProps {
   sender: 'coach' | 'student';
   content: string;
   timestamp: string;
+  created_at?: string;
 }
 
 export const CoachMessageBubble: React.FC<CoachMessageProps> = ({ sender, content, timestamp }) => {

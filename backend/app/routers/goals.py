@@ -49,14 +49,13 @@ def _calculate_progress(goal: Goal, db: Session) -> int:
     if not cache or not cache.data:
         return 0
         
-    # Mocking extraction from Open edX 
-    # Real progress calculation would be modules_completed / total_modules * 100
-    # For now we use fake parsing. If cache.data has 'completion', use it. Else mock it based on goal title hash for stability.
-    progress = cache.data.get("completion_percentage", 0)
-    if progress == 0:
-        stable_hash = sum(ord(c) for c in goal.title)
-        return stable_hash % 101 # Returns consistent 0-100 percentage based on phrasing
-    return progress
+    d = cache.data
+    progress_data = d.get("progress", {})
+    if isinstance(progress_data, dict):
+        progress = progress_data.get("progress_percent", 0.0) or d.get("progress_percent", 0.0) or 0.0
+    else:
+        progress = d.get("progress_percent", 0.0) or 0.0
+    return int(progress)
 
 class GoalStatsResponse(BaseModel):
     active_count: int

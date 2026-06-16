@@ -122,9 +122,16 @@ interface DesktopLayoutProps {
 export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isSettingsOpen, setSettingsOpen, isAccountOpen, setAccountOpen, sidebarVisible, setSidebarVisible } = useDashboardStore();
+  const { isSettingsOpen, setSettingsOpen, isAccountOpen, setAccountOpen, sidebarVisible, setSidebarVisible, coachGreeting, fetchCoachGreeting } = useDashboardStore();
   const { pendingCount, fetchReminders } = useRemindersStore();
   const { user } = useAuthStore();
+  const [impersonateQuery, setImpersonateQuery] = React.useState('');
+  const [impersonateTarget, setImpersonateTarget] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setImpersonateTarget(localStorage.getItem('impersonateUser'));
+  }, []);
+
   const { conversations, createNewConversation, switchConversation, conversationId, fetchConversations, renameConversation } = useCoachStore();
   const { nudges, isPanelOpen, setPanelOpen, fetchNudges } = useNudgeStore();
   const [coachDropdownOpen, setCoachDropdownOpen] = React.useState(false);
@@ -142,19 +149,25 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
   }, []);
 
   const inProgress = enrolledCourses.filter((c: any) => {
-    const progressPercent = c.progress_percent ?? c.progress ?? 0;
+    const progressObj = typeof c.progress === 'object' && c.progress !== null ? c.progress : {};
+    const progressPercent = progressObj.progress_percent ?? c.progress_percent ?? 0;
     return progressPercent < 100;
   });
   
   const bestCourse = inProgress.sort((a: any, b: any) => {
-    const progressA = a.progress_percent ?? a.progress ?? 0;
-    const progressB = b.progress_percent ?? b.progress ?? 0;
-    return progressB - progressA;
+    const progressObjA = typeof a.progress === 'object' && a.progress !== null ? a.progress : {};
+    const progressPercentA = progressObjA.progress_percent ?? a.progress_percent ?? 0;
+    const progressObjB = typeof b.progress === 'object' && b.progress !== null ? b.progress : {};
+    const progressPercentB = progressObjB.progress_percent ?? b.progress_percent ?? 0;
+    return progressPercentB - progressPercentA;
   })[0];
+  
+  const bestCourseProgressObj = bestCourse && typeof bestCourse.progress === 'object' && bestCourse.progress !== null ? bestCourse.progress : {};
+  const bestCourseProgressPercent = bestCourse ? (bestCourseProgressObj.progress_percent ?? bestCourse.progress_percent ?? 0) : 0;
   
   const nextAction = bestCourse ? {
     label: 'Suggested next step',
-    text: `Your ${bestCourse.course_name || bestCourse.name || 'course'} is ${bestCourse.progress_percent ?? bestCourse.progress ?? 0}% done — keep going to finish it!`,
+    text: `Your ${bestCourse.course_name || bestCourse.name || 'course'} is ${bestCourseProgressPercent}% done — keep going to finish it!`,
     courseId: bestCourse.course_id || bestCourse.id
   } : {
     label: 'Suggested next step',
@@ -165,11 +178,12 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
   React.useEffect(() => {
     fetchReminders();
     fetchNudges();
+    fetchCoachGreeting();
     if (location.pathname === '/coach') {
       fetchConversations();
       setCoachDropdownOpen(true);
     }
-  }, [fetchReminders, fetchNudges, location.pathname, fetchConversations]);
+  }, [fetchReminders, fetchNudges, location.pathname, fetchConversations, fetchCoachGreeting]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -188,6 +202,26 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
   
   return (
     <div className="w-full bg-bg-primary dark:bg-bg-dark min-h-screen flex flex-col relative">
+      {impersonateTarget && (
+        <div className="w-full bg-accent-sage/20 border-b border-accent-sage/30 py-3 px-6 flex justify-between items-center text-sm text-text-primary dark:text-text-darkPri font-medium select-none z-50 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-sage opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-sage"></span>
+            </span>
+            <span>Admin Impersonation Mode: Viewing dashboard as student <strong>{impersonateTarget}</strong></span>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.removeItem('impersonateUser');
+              window.location.reload();
+            }}
+            className="bg-accent-sage text-white text-xs px-3.5 py-1.5 rounded-lg hover:bg-accent-sage/90 transition-colors font-semibold"
+          >
+            Exit Student View
+          </button>
+        </div>
+      )}
       <AnimatePresence>
         {isSettingsOpen && (
           <>
@@ -274,6 +308,36 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
             <h1 className="font-serif text-[32px] font-bold text-text-primary dark:text-text-darkPri leading-none">
               {getGreeting()}, {(user?.full_name || 'Learner').split(' ')[0]}
             </h1>
+            
+            {/* Admin Impersonation Search Box */}
+            {((user?.role && ['support_staff', 'super_admin'].includes(user.role)) || !!impersonateTarget) && (
+              <div className="flex items-center gap-2 border border-border-light dark:border-border-dark rounded-xl px-3 py-1.5 bg-bg-secondary dark:bg-bg-darkCard focus-within:border-accent-sage/50 transition-colors ml-6 mr-auto">
+                <input
+                  type="text"
+                  placeholder="View as Student (email/username)..."
+                  value={impersonateQuery}
+                  onChange={(e) => setImpersonateQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && impersonateQuery.trim()) {
+                      localStorage.setItem('impersonateUser', impersonateQuery.trim());
+                      window.location.href = '/';
+                    }
+                  }}
+                  className="bg-transparent text-[13px] text-text-primary dark:text-text-darkPri focus:outline-none w-[220px]"
+                />
+                <button
+                  onClick={() => {
+                    if (impersonateQuery.trim()) {
+                      localStorage.setItem('impersonateUser', impersonateQuery.trim());
+                      window.location.href = '/';
+                    }
+                  }}
+                  className="text-[12px] text-accent-sage font-semibold hover:text-accent-sage/80"
+                >
+                  Go
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-3 pr-4">
               <WavingHand hasNudges={nudges.length > 0} onClick={() => setPanelOpen(true)} />
               <button 
@@ -401,7 +465,7 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
                 </motion.div>
                 
                 <motion.div variants={cardVariants}>
-                  <CoachCard message="I'm keeping track of your learning rhythm and goals. Let me know if you want to chat about your progress!" triggeredBy="momentum" />
+                  <CoachCard message={coachGreeting} triggeredBy="momentum" />
                 </motion.div>
                 <motion.div variants={cardVariants}>
                   <NextActionCard label={nextAction.label} text={nextAction.text} courseId={nextAction.courseId} />

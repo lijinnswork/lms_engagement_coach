@@ -149,11 +149,18 @@ async def openedx_connect(
     return {"message": "Successfully connected to Open edX (Live Fetch Mode)"}
 
 @router.post("/openedx/sync")
-async def openedx_sync(current_user: User = Depends(get_current_user)):
+async def openedx_sync(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not current_user.lms_username:
         raise HTTPException(status_code=400, detail="Not connected to Open edX")
     
-    return {"message": "Live sync mode active (Database caching bypassed)"}
+    from app.services.openedx_client import openedx_client
+    try:
+        await openedx_client.sync_user_lms_data(db, current_user)
+        return {"message": "Successfully synchronized live LMS data"}
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LMS Sync failed: {str(e)}")
 
 @router.post("/openedx/disconnect")
 def openedx_disconnect(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

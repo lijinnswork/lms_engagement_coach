@@ -13,6 +13,8 @@ interface DashboardStore {
   coachCardVisible: boolean
   replyOpen: boolean
   replyText: string
+  coachGreeting: string
+  fetchCoachGreeting: () => Promise<void>
   dismissCoachCard: () => void
   toggleReply: () => void
   setReplyText: (text: string) => void
@@ -69,6 +71,20 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   coachCardVisible: true,
   replyOpen: false,
   replyText: '',
+  coachGreeting: "I'm keeping track of your learning rhythm and goals. Let me know if you want to chat about your progress!",
+  fetchCoachGreeting: async () => {
+    try {
+      const res = await fetchWithAuth('/api/coach/latest-greeting');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.message) {
+          set({ coachGreeting: data.message });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch coach greeting", e);
+    }
+  },
   dismissCoachCard: () => set({ coachCardVisible: false }),
   toggleReply: () => set((state) => ({ replyOpen: !state.replyOpen })),
   setReplyText: (text: string) => set({ replyText: text }),

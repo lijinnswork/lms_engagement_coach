@@ -1,6 +1,6 @@
 import uuid
-from typing import List
-from fastapi import Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -15,7 +15,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
 def get_current_user(
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    token: str = Depends(oauth2_scheme),
+    x_impersonate_user: Optional[str] = Header(None)
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -43,6 +44,27 @@ def get_current_user(
     user = db.query(User).filter(User.id == uid).first()
     if user is None:
         raise credentials_exception
+        
+    # Check if the user is admin and requesting impersonation
+    if x_impersonate_user and user.role in ["support_staff", "super_admin"]:
+        impersonated_user = db.query(User).filter(User.email == x_impersonate_user.strip().lower()).first()
+        if not impersonated_user:
+            impersonated_user = db.query(User).filter(User.lms_username == x_impersonate_user.strip()).first()
+        if not impersonated_user:
+            try:
+                imp_uid = uuid.UUID(x_impersonate_user.strip())
+                impersonated_user = db.query(User).filter(User.id == imp_uid).first()
+            except ValueError:
+                pass
+                
+        if impersonated_user:
+            # Swap user to the impersonated user for the request lifecycle
+            user = impersonated_user
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Impersonation target student '{x_impersonate_user}' not found."
+            )
         
     if session_id:
         try:

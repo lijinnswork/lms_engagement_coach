@@ -58,6 +58,7 @@ export const useAuthStore = create<AuthState>((set) => {
 
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('token');
+  const impersonateUser = localStorage.getItem('impersonateUser');
   
   // Distinguish if we attempted to authenticate
   const hasAuthHeader = !!token || 
@@ -68,7 +69,8 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 
   const headers = {
     ...options.headers,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(impersonateUser ? { 'X-Impersonate-User': impersonateUser } : {})
   };
 
   const response = await fetch(url, { ...options, headers });

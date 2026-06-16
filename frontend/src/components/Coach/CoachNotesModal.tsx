@@ -21,6 +21,27 @@ export const CoachNotesModal: React.FC<CoachNotesModalProps> = ({ isOpen, onClos
     }
   }, [isOpen]);
 
+  const handleClearNotes = async () => {
+    const confirmClear = window.confirm("Are you sure you want to clear your chat history and reset the coach's memory?");
+    if (!confirmClear) return;
+    
+    try {
+      const res = await fetchWithAuth('/api/coach/notes/clear', {
+        method: 'POST'
+      });
+      if (res.ok) {
+        alert("Coach memory cleared successfully!");
+        onClose();
+        window.location.reload();
+      } else {
+        alert("Failed to clear coach notes.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error clearing notes.");
+    }
+  };
+
   const modalContent = (
     <AnimatePresence>
       {isOpen && (
@@ -81,7 +102,7 @@ export const CoachNotesModal: React.FC<CoachNotesModalProps> = ({ isOpen, onClos
                 <p className="text-[13px] text-text-secondary text-center">
                   This data is private to you. I use it to help personalize my suggestions. You can clear it anytime.
                 </p>
-                <button onClick={() => { alert("Notes cleared!"); onClose(); }} className="text-[14px] font-medium text-red-500/80 hover:text-red-500 transition-colors mx-auto px-4 py-2 border border-red-200 dark:border-red-900/50 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10">
+                <button onClick={handleClearNotes} className="text-[14px] font-medium text-red-500/80 hover:text-red-500 transition-colors mx-auto px-4 py-2 border border-red-200 dark:border-red-900/50 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10">
                   Clear All Notes
                 </button>
               </div>
