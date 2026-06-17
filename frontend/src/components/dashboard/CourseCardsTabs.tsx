@@ -120,7 +120,7 @@ export const CourseCardsTabs = () => {
           <span>Class Pace: {course.cohortProgress.toFixed(0)}%</span>
           <span className={`font-semibold ${course.progress >= course.cohortProgress ? 'text-green-500' : 'text-[#E8A87C]'}`}>
             {course.progress >= course.cohortProgress 
-              ? `🎉 ${(course.progress - course.cohortProgress).toFixed(0)}% ahead` 
+              ? `${(course.progress - course.cohortProgress).toFixed(0)}% ahead` 
               : `${(course.cohortProgress - course.progress).toFixed(0)}% behind`
             }
           </span>
