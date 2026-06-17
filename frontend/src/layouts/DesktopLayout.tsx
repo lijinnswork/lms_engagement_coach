@@ -309,36 +309,36 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
               {getGreeting()}, {(user?.full_name || 'Learner').split(' ')[0]}
             </h1>
             
-            {/* Admin Impersonation Search Box */}
-            {((user?.role && ['support_staff', 'super_admin'].includes(user.role)) || !!impersonateTarget) && (
-              <div className="flex items-center gap-2 border border-border-light dark:border-border-dark rounded-xl px-3 py-1.5 bg-bg-secondary dark:bg-bg-darkCard focus-within:border-accent-sage/50 transition-colors ml-6 mr-auto">
-                <input
-                  type="text"
-                  placeholder="View as Student (email/username)..."
-                  value={impersonateQuery}
-                  onChange={(e) => setImpersonateQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && impersonateQuery.trim()) {
-                      localStorage.setItem('impersonateUser', impersonateQuery.trim());
-                      window.location.href = '/';
-                    }
-                  }}
-                  className="bg-transparent text-[13px] text-text-primary dark:text-text-darkPri focus:outline-none w-[220px]"
-                />
-                <button
-                  onClick={() => {
-                    if (impersonateQuery.trim()) {
-                      localStorage.setItem('impersonateUser', impersonateQuery.trim());
-                      window.location.href = '/';
-                    }
-                  }}
-                  className="text-[12px] text-accent-sage font-semibold hover:text-accent-sage/80"
-                >
-                  Go
-                </button>
-              </div>
-            )}
             <div className="flex items-center gap-3 pr-4">
+              {/* Admin Impersonation Search Box */}
+              {((user?.role && ['support_staff', 'super_admin'].includes(user.role)) || !!impersonateTarget) && (
+                <div className="flex items-center gap-2 border border-border-light dark:border-border-dark rounded-xl px-3 py-1.5 bg-bg-secondary dark:bg-bg-darkCard focus-within:border-accent-sage/50 transition-colors mr-2">
+                  <input
+                    type="text"
+                    placeholder="View as Student (email/username)..."
+                    value={impersonateQuery}
+                    onChange={(e) => setImpersonateQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && impersonateQuery.trim()) {
+                        localStorage.setItem('impersonateUser', impersonateQuery.trim());
+                        window.location.href = '/';
+                      }
+                    }}
+                    className="bg-transparent text-[13px] text-text-primary dark:text-text-darkPri focus:outline-none w-[220px]"
+                  />
+                  <button
+                    onClick={() => {
+                      if (impersonateQuery.trim()) {
+                        localStorage.setItem('impersonateUser', impersonateQuery.trim());
+                        window.location.href = '/';
+                      }
+                    }}
+                    className="text-[12px] text-accent-sage font-semibold hover:text-accent-sage/80"
+                  >
+                    Go
+                  </button>
+                </div>
+              )}
               <WavingHand hasNudges={nudges.length > 0} onClick={() => setPanelOpen(true)} />
               <button 
                 onClick={() => setSettingsOpen(true)}
