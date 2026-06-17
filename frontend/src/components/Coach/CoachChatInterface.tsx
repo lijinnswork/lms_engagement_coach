@@ -5,6 +5,7 @@ import { CoachInputBar } from './CoachInputBar';
 import { CoachNotesModal } from './CoachNotesModal';
 import { CoachSearchModal } from './CoachSearchModal';
 import { useCoachStore } from '../../store/coachStore';
+import { useDashboardStore } from '../../store/dashboardStore';
 
 export const CoachChatInterface: React.FC = () => {
   const { 
@@ -17,6 +18,7 @@ export const CoachChatInterface: React.FC = () => {
     sendMessage 
   } = useCoachStore();
   
+  const { replyText, setReplyText } = useDashboardStore();
   const [input, setInput] = useState('');
   
   const [isNotesOpen, setIsNotesOpen] = useState(false);
@@ -28,6 +30,18 @@ export const CoachChatInterface: React.FC = () => {
       initConversation();
     }
   }, [conversationId, initConversation]);
+
+  // Check if we arrived with a reply message from the home page Coach Card
+  useEffect(() => {
+    const checkAndSendHomeReply = async () => {
+      if (conversationId && replyText.trim()) {
+        const textToSend = replyText;
+        setReplyText(''); // Clear immediately to prevent double sends
+        await sendMessage(textToSend);
+      }
+    };
+    checkAndSendHomeReply();
+  }, [conversationId, replyText, sendMessage, setReplyText]);
 
   const handleSend = async (forcedText?: string, _contextTag?: string) => {
     const textToSend = forcedText || input;
