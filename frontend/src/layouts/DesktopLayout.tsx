@@ -106,11 +106,7 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
     fetchReminders();
     fetchNudges();
     fetchCoachGreeting();
-    if (location.pathname === '/coach') {
-      fetchConversations();
-      setCoachDropdownOpen(true);
-    }
-  }, [fetchReminders, fetchNudges, location.pathname, fetchConversations, fetchCoachGreeting]);
+  }, [fetchReminders, fetchNudges, fetchCoachGreeting]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
