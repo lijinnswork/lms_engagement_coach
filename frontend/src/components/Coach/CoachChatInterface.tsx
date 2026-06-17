@@ -18,7 +18,6 @@ export const CoachChatInterface: React.FC = () => {
     sendMessage 
   } = useCoachStore();
   
-  const { replyText, setReplyText } = useDashboardStore();
   const [input, setInput] = useState('');
   
   const [isNotesOpen, setIsNotesOpen] = useState(false);
@@ -34,14 +33,15 @@ export const CoachChatInterface: React.FC = () => {
   // Check if we arrived with a reply message from the home page Coach Card
   useEffect(() => {
     const checkAndSendHomeReply = async () => {
-      if (conversationId && replyText.trim()) {
-        const textToSend = replyText;
-        setReplyText(''); // Clear immediately to prevent double sends
-        await sendMessage(textToSend);
+      // Access store state directly to avoid duplicate executions due to StrictMode closures
+      const currentReplyText = useDashboardStore.getState().replyText;
+      if (conversationId && currentReplyText.trim()) {
+        useDashboardStore.getState().setReplyText(''); // Clear synchronously immediately
+        await sendMessage(currentReplyText);
       }
     };
     checkAndSendHomeReply();
-  }, [conversationId, replyText, sendMessage, setReplyText]);
+  }, [conversationId, sendMessage]);
 
   const handleSend = async (forcedText?: string, _contextTag?: string) => {
     const textToSend = forcedText || input;
