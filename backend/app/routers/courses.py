@@ -49,50 +49,46 @@ def get_mock_course_data(course_id: str):
 async def get_live_courses(current_user: User, db: Session = None):
     if not current_user.lms_username:
         return []
-    from app.services.openedx_client import openedx_client
-    
-    courses = []
+        
+    close_db = False
+    if db is None:
+        from app.database import SessionLocal
+        db = SessionLocal()
+        close_db = True
+        
     try:
-        courses = await openedx_client.get_user_courses_direct(current_user.lms_username)
-    except Exception as e:
-        logger.error(f"Failed to fetch live courses for {current_user.lms_username}: {e}")
-        try:
-            from app.database import SessionLocal
-            from app.db.models.lms_data_cache import LMSDataCache
-            local_db = SessionLocal()
-            cache_entries = local_db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
-            local_db.close()
-            if cache_entries:
-                logger.info(f"get_live_courses fallback: Loaded {len(cache_entries)} courses from cache")
-                courses = [entry.data for entry in cache_entries]
-        except Exception as db_err:
-            logger.error(f"Failed to fetch cached courses: {db_err}")
-
-    # Inject cohort stats from system-stats@dashboard.local
-    if courses:
-        close_db = False
-        if db is None:
-            from app.database import SessionLocal
-            db = SessionLocal()
-            close_db = True
-        try:
-            from app.db.models.lms_data_cache import LMSDataCache
+        from app.db.models.lms_data_cache import LMSDataCache
+        cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
+        
+        if cache_entries:
+            courses = [entry.data for entry in cache_entries]
+        else:
+            # Cache is empty, sync live once to populate it
+            from app.services.openedx_client import openedx_client
+            logger.info(f"get_live_courses: Cache empty for {current_user.lms_username}, running sync...")
+            await openedx_client.sync_user_lms_data(db, current_user)
+            cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == current_user.id).all()
+            courses = [entry.data for entry in cache_entries]
+            
+        # Inject cohort stats from system-stats@dashboard.local
+        if courses:
             system_user = db.query(User).filter(User.email == "system-stats@dashboard.local").first()
             if system_user:
-                cache_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == system_user.id).all()
-                stats_by_course = {entry.course_id: entry.data for entry in cache_entries}
+                system_entries = db.query(LMSDataCache).filter(LMSDataCache.user_id == system_user.id).all()
+                stats_by_course = {entry.course_id: entry.data for entry in system_entries}
                 for course in courses:
                     course_id = course.get("course_id")
                     if course_id in stats_by_course:
                         stat = stats_by_course[course_id]
                         course["cohort_average_progress"] = stat.get("avg_progress_percent", 0.0)
-        except Exception as e:
-            logger.error(f"Error injecting cohort stats: {e}")
-        finally:
-            if close_db:
-                db.close()
-
-    return courses
+                        
+        return courses
+    except Exception as e:
+        logger.error(f"Error in get_live_courses: {e}")
+        return []
+    finally:
+        if close_db:
+            db.close()
 
 @router.get("")
 @router.get("/")
@@ -212,8 +208,8 @@ async def get_overall_progress(current_user: User = Depends(get_current_user)):
     }
 
 @router.get("/{course_id}")
-async def get_course_detail(course_id: str, current_user: User = Depends(get_current_user)):
-    courses = await get_live_courses(current_user)
+async def get_course_detail(course_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    courses = await get_live_courses(current_user, db)
     for c in courses:
         if c.get("course_id") == course_id:
             return c
@@ -252,6 +248,27 @@ async def get_coach_take(course_id: str, current_user: User = Depends(get_curren
         overall_grade = data.get("overall_grade", 0)
         pass_fail_status = data.get("pass_fail_status", "unknown")
         
+    # Check database cache first to avoid Gemini API timeouts/costs
+    cache_key = f"{course_id}_coach_take"
+    from app.db.models.lms_data_cache import LMSDataCache
+    cached_entry = db.query(LMSDataCache).filter(
+        LMSDataCache.user_id == current_user.id,
+        LMSDataCache.course_id == cache_key
+    ).first()
+    
+    if cached_entry:
+        cached_data = cached_entry.data
+        if (cached_data.get("items_completed") == items_completed and 
+            cached_data.get("overall_grade") == overall_grade and 
+            cached_data.get("text")):
+            
+            # Cached match found - return immediately
+            return {
+                "text": cached_data.get("text"),
+                "generated_at": cached_entry.created_at.isoformat() + "Z" if cached_entry.created_at else now.isoformat() + "Z",
+                "is_cached": True
+            }
+            
     last_activity_time = data.get("last_activity_time") or (progress_data.get("last_activity_at") if isinstance(progress_data, dict) else None)
     
     days_since = 0
@@ -290,7 +307,30 @@ Rules:
 """
     try:
         coach_text = gemini_client.generate_coach_message(prompt)
+        
+        # Save to database cache if it's a valid generated message
+        if coach_text and not coach_text.startswith("I ran into an issue connecting to Gemini") and not coach_text.startswith("DEVELOPMENT MODE"):
+            if cached_entry:
+                cached_entry.data = {
+                    "text": coach_text,
+                    "items_completed": items_completed,
+                    "overall_grade": overall_grade
+                }
+                cached_entry.created_at = now  # refresh timestamp
+            else:
+                new_entry = LMSDataCache(
+                    user_id=current_user.id,
+                    course_id=cache_key,
+                    data={
+                        "text": coach_text,
+                        "items_completed": items_completed,
+                        "overall_grade": overall_grade
+                    }
+                )
+                db.add(new_entry)
+            db.commit()
     except Exception as e:
+        logger.error(f"Failed to generate coach message: {e}")
         coach_text = "Keep going — you're making progress! 💪"
         
     generated_at_iso = now.isoformat() + "Z"
@@ -303,7 +343,7 @@ Rules:
 
 @router.get("/{course_id}/pace")
 async def get_course_pace(course_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    courses = await get_live_courses(current_user)
+    courses = await get_live_courses(current_user, db)
     data = None
     for c in courses:
         if c.get("course_id") == course_id:

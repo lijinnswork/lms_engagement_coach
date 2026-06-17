@@ -112,14 +112,14 @@ export const TabletLayout = ({ children }: TabletLayoutProps) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSettingsOpen(false)}
-              className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40"
+              className="fixed inset-0 bg-black/20 dark:bg-black/40 z-[150]"
             />
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="fixed top-0 right-0 bottom-0 w-[420px] max-w-[90vw] bg-bg-primary dark:bg-bg-dark z-50 shadow-2xl border-l border-border-light dark:border-border-dark flex flex-col overflow-hidden"
+              className="fixed top-0 right-0 bottom-0 w-[420px] max-w-[90vw] bg-bg-primary dark:bg-bg-dark z-[200] shadow-2xl border-l border-border-light dark:border-border-dark flex flex-col overflow-hidden"
             >
               <div className="flex justify-between items-center px-6 py-6 border-b border-border-light dark:border-border-dark shrink-0">
                 <h2 className="font-serif text-[24px] text-text-primary dark:text-text-darkPri">Settings</h2>

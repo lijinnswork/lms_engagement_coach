@@ -39,14 +39,14 @@ export const AdminLayout: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setAccountOpen(false)}
-              className="fixed inset-0 bg-black/50 z-40"
+              className="fixed inset-0 bg-black/50 z-[150]"
             />
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="dark fixed top-0 right-0 bottom-0 w-[420px] max-w-[90vw] bg-[#0D1117] z-50 shadow-2xl border-l border-[#1C2128] flex flex-col overflow-hidden text-gray-200"
+              className="dark fixed top-0 right-0 bottom-0 w-[420px] max-w-[90vw] bg-[#0D1117] z-[200] shadow-2xl border-l border-[#1C2128] flex flex-col overflow-hidden text-gray-200"
               style={{ '--bg-dark': '#0D1117', '--bg-darkCard': '#1C2128', '--border-dark': '#1C2128' } as React.CSSProperties}
             >
               <div className="flex justify-between items-center px-6 py-6 border-b border-[#1C2128] shrink-0">
