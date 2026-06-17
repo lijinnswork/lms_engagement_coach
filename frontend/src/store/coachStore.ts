@@ -22,6 +22,7 @@ interface CoachStore {
   createNewConversation: () => Promise<void>;
   renameConversation: (id: string, newTitle: string) => Promise<void>;
   switchConversation: (id: string) => Promise<void>;
+  deleteConversation: (id: string) => Promise<void>;
   fetchMessages: (cId: string) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
 }
@@ -81,6 +82,35 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       }
     } catch (e) {
       console.error("Failed to rename conversation", e);
+    }
+  },
+
+  deleteConversation: async (id: string) => {
+    try {
+      const res = await fetchWithAuth(`/api/coach/conversations/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        set((state) => {
+          const nextConversations = state.conversations.filter(c => c.id !== id);
+          let nextId = state.conversationId;
+          if (state.conversationId === id) {
+            nextId = nextConversations.length > 0 ? nextConversations[0].id : null;
+          }
+          return {
+            conversations: nextConversations,
+            conversationId: nextId
+          };
+        });
+        const nextId = get().conversationId;
+        if (nextId) {
+          await get().switchConversation(nextId);
+        } else {
+          set({ messages: [] });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to delete conversation", e);
     }
   },
 

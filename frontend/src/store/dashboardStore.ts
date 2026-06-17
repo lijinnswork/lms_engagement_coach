@@ -39,6 +39,11 @@ interface DashboardStore {
   // Sidebar visibility
   sidebarVisible: boolean
   setSidebarVisible: (visible: boolean) => void
+
+  // Right Stats Sidebar
+  rightSidebarOpen: boolean
+  setRightSidebarOpen: (open: boolean) => void
+  toggleRightSidebar: () => void
 }
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
@@ -155,5 +160,10 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 
   // Sidebar
   sidebarVisible: true,
-  setSidebarVisible: (visible) => set({ sidebarVisible: visible })
+  setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
+
+  // Right Stats Sidebar
+  rightSidebarOpen: true,
+  setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
+  toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen }))
 }))

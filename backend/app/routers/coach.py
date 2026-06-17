@@ -164,6 +164,19 @@ def rename_conversation(conversation_id: uuid.UUID, data: dict, db: Session = De
     return convo
 
 
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation(conversation_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    convo = db.query(CoachConversation).filter(CoachConversation.id == conversation_id, CoachConversation.user_id == current_user.id).first()
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Delete associated messages first due to foreign key constraints
+    db.query(CoachMessage).filter(CoachMessage.conversation_id == conversation_id).delete(synchronize_session=False)
+    db.delete(convo)
+    db.commit()
+    return {"message": "Conversation deleted"}
+
+
 @router.get("/messages", response_model=PaginatedMessagesResponse)
 def get_messages(
     conversation_id: uuid.UUID,

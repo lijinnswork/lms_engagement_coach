@@ -3,6 +3,7 @@ import { DesktopLayout } from '../layouts/DesktopLayout';
 import { TabletLayout } from '../layouts/TabletLayout';
 import { MobileLayout } from '../layouts/MobileLayout';
 import { CoachChatInterface } from '../components/Coach/CoachChatInterface';
+import { CoachSidebar } from '../components/Coach/CoachSidebar';
 
 export const CoachChat = () => {
   const breakpoint = useBreakpoint();
@@ -15,9 +16,17 @@ export const CoachChat = () => {
     </div>
   );
 
+  const desktopContent = (
+    <div className="w-full h-full flex overflow-hidden">
+      <CoachSidebar />
+      <div className="flex-1 h-full overflow-hidden">
+        <CoachChatInterface />
+      </div>
+    </div>
+  );
 
   if (breakpoint === 'desktop') {
-    return <DesktopLayout>{content}</DesktopLayout>;
+    return <DesktopLayout>{desktopContent}</DesktopLayout>;
   }
   
   if (breakpoint === 'tablet') {

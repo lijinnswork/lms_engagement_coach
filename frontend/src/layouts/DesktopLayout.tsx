@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, Target, Settings, Lock, PanelLeftClose, PanelLeftOpen, Bell, User as UserIcon } from 'lucide-react';
+import { Home, MessageSquare, Target, Settings, Lock, PanelLeftClose, PanelLeftOpen, Bell, BarChart2, User as UserIcon } from 'lucide-react';
 import { useAuthStore, fetchWithAuth } from '../stores/authStore';
 
 import { CoachCard } from '../components/dashboard/CoachCard';
@@ -9,7 +9,6 @@ import { NextActionCard } from '../components/dashboard/NextActionCard';
 import { GoalsList } from '../components/dashboard/GoalsList';
 import { EngagementRadarWidget } from '../components/dashboard/EngagementRadarWidget';
 import { useDashboardStore } from '../store/dashboardStore';
-import { useCoachStore } from '../store/coachStore';
 import { AnnouncementBanner } from '../components/dashboard/AnnouncementBanner';
 import { UpcomingDue } from '../components/dashboard/UpcomingDue';
 import { StackedProgressBar } from '../components/dashboard/StackedProgressBar';
@@ -21,87 +20,6 @@ import { LearningRhythm } from '../components/dashboard/LearningRhythm';
 import { WavingHand } from '../components/Common/WavingHand';
 import { useNudgeStore } from '../store/nudgeStore';
 import { NotificationsPanel } from '../components/Notifications/NotificationsPanel';
-
-interface ConversationSidebarItemProps {
-  conversation: any;
-  isActive: boolean;
-  onSelect: (id: string) => void;
-  onRename: (id: string, newTitle: string) => Promise<void> | void;
-}
-
-const ConversationSidebarItem = ({ conversation, isActive, onSelect, onRename }: ConversationSidebarItemProps) => {
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-  const [title, setTitle] = React.useState(conversation.summary || '');
-  const inputRef = React.useRef<HTMLInputElement>(null);
-
-  const displayTitle = conversation.summary && conversation.summary !== "New Chat"
-    ? conversation.summary
-    : `Conversation — ${new Date(conversation.started_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
-
-  React.useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleSave = async () => {
-    setIsEditing(false);
-    if (title.trim() && title.trim() !== conversation.summary) {
-      setSaving(true);
-      try {
-        await onRename(conversation.id, title.trim());
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setSaving(false);
-      }
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
-      setTitle(conversation.summary || '');
-      setIsEditing(false);
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <input
-        ref={inputRef}
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={handleKeyDown}
-        className="w-full text-[12px] bg-bg-primary dark:bg-bg-dark border border-accent-sage rounded px-1.5 py-0.5 text-text-primary dark:text-text-darkPri focus:outline-none focus:ring-1 focus:ring-accent-sage"
-      />
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 w-full justify-between group">
-      <button 
-        onClick={() => onSelect(conversation.id)} 
-        onDoubleClick={() => setIsEditing(true)}
-        className={`text-[12px] truncate flex-1 text-left py-1 transition-colors ${isActive ? 'text-text-primary dark:text-text-darkPri font-medium' : 'text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri'}`}
-        title={displayTitle}
-        disabled={saving}
-      >
-        {displayTitle}
-      </button>
-      {saving && (
-        <span className="text-[10px] italic text-accent-sage shrink-0 animate-pulse">
-          Saving...
-        </span>
-      )}
-    </div>
-  );
-};
 
 const containerVariants = {
   hidden: {},
@@ -122,7 +40,18 @@ interface DesktopLayoutProps {
 export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isSettingsOpen, setSettingsOpen, isAccountOpen, setAccountOpen, sidebarVisible, setSidebarVisible, coachGreeting, fetchCoachGreeting } = useDashboardStore();
+  const { 
+    isSettingsOpen, 
+    setSettingsOpen, 
+    isAccountOpen, 
+    setAccountOpen, 
+    sidebarVisible, 
+    setSidebarVisible, 
+    coachGreeting, 
+    fetchCoachGreeting,
+    rightSidebarOpen,
+    toggleRightSidebar 
+  } = useDashboardStore();
   const { pendingCount, fetchReminders } = useRemindersStore();
   const { user } = useAuthStore();
   const [impersonateQuery, setImpersonateQuery] = React.useState('');
@@ -132,9 +61,7 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
     setImpersonateTarget(localStorage.getItem('impersonateUser'));
   }, []);
 
-  const { conversations, createNewConversation, switchConversation, conversationId, fetchConversations, renameConversation } = useCoachStore();
   const { nudges, isPanelOpen, setPanelOpen, fetchNudges } = useNudgeStore();
-  const [coachDropdownOpen, setCoachDropdownOpen] = React.useState(false);
   const [enrolledCourses, setEnrolledCourses] = React.useState<any[]>([]);
 
   React.useEffect(() => {
@@ -340,6 +267,16 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
                 </div>
               )}
               <WavingHand hasNudges={nudges.length > 0} onClick={() => setPanelOpen(true)} />
+              
+              {/* Toggle Stats Sidebar */}
+              <button
+                onClick={toggleRightSidebar}
+                title={rightSidebarOpen ? "Hide stats panel" : "Show stats panel"}
+                className={`text-text-secondary dark:text-text-darkSec hover:text-text-primary dark:hover:text-text-darkPri transition-colors p-2 rounded-full cursor-pointer ${!rightSidebarOpen ? 'bg-black/5 dark:bg-white/5 text-accent-sage' : ''}`}
+              >
+                <BarChart2 size={22} />
+              </button>
+
               <button 
                 onClick={() => setSettingsOpen(true)}
                 title="Settings"
@@ -376,46 +313,19 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
             >
               <PanelLeftClose size={14} />
             </button>
-
             <div className="flex flex-col gap-2 flex-1 mt-2">
               <button onClick={() => navigate('/')} className={getNavClass('/')}>
                 <Home size={18} />
                 <span className="text-[13px] font-sans font-medium">Home</span>
               </button>
               
-              <div className="flex flex-col w-full">
-                <button 
-                  onClick={() => { 
-                    if (location.pathname !== '/coach') navigate('/coach'); 
-                    else setCoachDropdownOpen(!coachDropdownOpen); 
-                  }} 
-                  className={getNavClass('/coach')}
-                >
-                  <MessageSquare size={18} />
-                  <span className="text-[13px] font-sans font-medium flex-1 text-left">Coach</span>
-                </button>
-                {coachDropdownOpen && location.pathname === '/coach' && (
-                  <div className="flex flex-col pl-9 pr-2 py-2 gap-2 w-full animate-in slide-in-from-top-2 duration-200">
-                    <button 
-                      onClick={() => createNewConversation()} 
-                      className="text-[12px] font-semibold text-accent-sage hover:text-accent-sage/80 text-left flex items-center gap-1 w-fit"
-                    >
-                      + New Chat
-                    </button>
-                    <div className="flex flex-col gap-1 mt-1">
-                      {conversations.map(c => (
-                        <ConversationSidebarItem
-                          key={c.id}
-                          conversation={c}
-                          isActive={conversationId === c.id}
-                          onSelect={switchConversation}
-                          onRename={renameConversation}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <button 
+                onClick={() => navigate('/coach')} 
+                className={getNavClass('/coach')}
+              >
+                <MessageSquare size={18} />
+                <span className="text-[13px] font-sans font-medium flex-1 text-left">Coach</span>
+              </button>
 
               <button onClick={() => navigate('/goals')} className={getNavClass('/goals')}>
                 <Target size={18} />
@@ -482,31 +392,33 @@ export const DesktopLayout = ({ children }: DesktopLayoutProps) => {
         </div>
 
         {/* Right Panel - Persistent across all pages */}
-        <div className="flex-1 min-w-[300px] max-w-[320px] bg-bg-primary dark:bg-bg-dark px-4 pt-8 pb-12 sticky top-[84px] h-[calc(100vh-84px)] overflow-hidden flex flex-col border-l border-border-light dark:border-border-dark">
-          <div className="flex-1 overflow-y-auto relative hidden-scrollbar pb-12">
-            <motion.div 
-              variants={containerVariants} 
-              initial="hidden" 
-              animate="visible"
-              className="flex flex-col gap-6 w-full max-w-[300px]"
-            >
-              <motion.div variants={cardVariants}>
-                {!children ? (
-                  <>
-                    <h2 className="text-[16px] font-serif text-text-primary dark:text-text-darkPri mb-3">Goals this week</h2>
-                    <GoalsList />
-                  </>
-                ) : (
-                  <EngagementRadarWidget />
-                )}
-              </motion.div>
+        {rightSidebarOpen && (
+          <div className="flex-1 min-w-[300px] max-w-[320px] bg-bg-primary dark:bg-bg-dark px-4 pt-8 pb-12 sticky top-[84px] h-[calc(100vh-84px)] overflow-hidden flex flex-col border-l border-border-light dark:border-border-dark animate-in slide-in-from-right duration-200">
+            <div className="flex-1 overflow-y-auto relative hidden-scrollbar pb-12">
+              <motion.div 
+                variants={containerVariants} 
+                initial="hidden" 
+                animate="visible"
+                className="flex flex-col gap-6 w-full max-w-[300px]"
+              >
+                <motion.div variants={cardVariants}>
+                  {!children ? (
+                    <>
+                      <h2 className="text-[16px] font-serif text-text-primary dark:text-text-darkPri mb-3">Goals this week</h2>
+                      <GoalsList />
+                    </>
+                  ) : (
+                    <EngagementRadarWidget />
+                  )}
+                </motion.div>
 
-              <motion.div variants={cardVariants} className="mt-2">
-                <UpcomingDue />
+                <motion.div variants={cardVariants} className="mt-2">
+                  <UpcomingDue />
+                </motion.div>
               </motion.div>
-            </motion.div>
+            </div>
           </div>
-        </div>
+        )}
         
       </div>
       <NotificationsPanel isOpen={isPanelOpen} onClose={() => setPanelOpen(false)} />
